@@ -1,0 +1,17 @@
+{
+  "name": "homie-proxy",
+  "version": "1.0.0",
+  "description": "Secure WebSocket proxy for the Homie dashboard HA addon",
+  "main": "proxy.js",
+  "scripts": {
+    "start": "node proxy.js"
+  },
+  "dependencies": {
+    "express": "^4.18.3",
+    "ws": "^8.17.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "license": "MIT"
+}

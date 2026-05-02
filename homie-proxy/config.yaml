@@ -1,0 +1,62 @@
+---
+name: "Homie Dashboard Proxy"
+description: >-
+  Secure WebSocket proxy for the Homie smart home dashboard.
+  Stores HA tokens server-side so they are never exposed to the browser.
+version: "1.0.0"
+slug: "homie_proxy"
+url: "https://github.com/Ctrlable/homie-addon"
+
+# Supported architectures (all common HAOS targets)
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+
+# Addon UI ingress — dashboard served directly inside HA
+ingress: true
+ingress_port: 3001
+panel_icon: mdi:view-dashboard
+panel_title: Homie
+
+# Also expose port 3001 for direct LAN access from tablets/wall panels
+ports:
+  3001/tcp: 3001
+ports_description:
+  3001/tcp: "Homie proxy + dashboard server"
+
+# Allow the addon to talk to HA core on the internal hassio network
+homeassistant_api: false   # we use the user-supplied token, not supervisor token
+hassio_api: false
+
+# Startup after HA core is ready
+startup: application
+boot: auto
+init: false                # we manage our own process (Node.js), no S6 needed
+
+# Options schema — shown in the addon UI Configuration tab
+# All tokens stored here are encrypted by HA Supervisor at rest.
+options:
+  connections:
+    - id: "home"
+      label: "My Home"
+      ha_url: "http://homeassistant.local:8123"
+      token: ""
+      wan_url: ""
+
+schema:
+  connections:
+    - id: str
+      label: str
+      ha_url: url
+      token: password   # HA renders this as a masked input field
+      wan_url: str?     # optional external URL
+
+# Persist proxy config across addon restarts
+map:
+  - addon_config:rw
+
+# Resources — the proxy is very lightweight
+image: "ghcr.io/ctrlable/homie-proxy/{arch}"
