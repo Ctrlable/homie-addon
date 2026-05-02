@@ -14,14 +14,13 @@
 bashio::log.info "Starting Homie Dashboard Proxy v1.0.0"
 
 # ── Read connection list from options.json ──────────────────
-# Serialize the full connections array as JSON into one env var.
-# proxy.js parses it at startup.
-CONNECTIONS="$(bashio::config 'connections' | python3 -c '
-import sys, json
-data = sys.stdin.read().strip()
-# bashio returns the array as JSON already
-print(data)
-')"
+# Read /data/options.json directly — more reliable than piping bashio for arrays.
+CONNECTIONS="$(python3 -c "
+import json
+with open('/data/options.json') as f:
+    opts = json.load(f)
+print(json.dumps(opts.get('connections', [])))
+")"
 
 export HOMIE_CONNECTIONS="${CONNECTIONS}"
 
@@ -31,7 +30,7 @@ export HOMIE_PORT="3001"
 # ── Log level ───────────────────────────────────────────────
 export HOMIE_LOG="${LOG_LEVEL:-info}"
 
-bashio::log.info "Loaded $(echo "${CONNECTIONS}" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(len(d))') connection(s)"
+bashio::log.info "Loaded $(python3 -c "import json; print(len(json.loads('''${CONNECTIONS}''')))" 2>/dev/null || echo '?') connection(s)"
 bashio::log.info "Proxy listening on port ${HOMIE_PORT}"
 bashio::log.info "Dashboard available at http://homeassistant.local:${HOMIE_PORT}"
 

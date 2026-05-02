@@ -152,7 +152,7 @@ wss.on('connection', (browserWs, req) => {
 
     let haWs;
     try {
-      haWs = new WebSocket(wsUrl);
+      haWs = new WebSocket(wsUrl, { rejectUnauthorized: false });
     } catch (e) {
       log('error', `[${connId}] Failed to open WS to HA: ${e.message}`);
       browserWs.close(1011, 'Proxy upstream error');
@@ -251,7 +251,7 @@ function resolveHaUrl(conn) {
     const https = lan.startsWith('https') ? require('https') : require('http');
     const req = https.request(
       `${lan}/api/`,
-      { method: 'HEAD', headers: { Authorization: `Bearer ${conn.token}` }, timeout: 1400 },
+      { method: 'HEAD', headers: { Authorization: `Bearer ${conn.token}` }, timeout: 1400, rejectUnauthorized: false },
       res => {
         clearTimeout(timer);
         resolve(res.statusCode < 400 ? lan : wan);
