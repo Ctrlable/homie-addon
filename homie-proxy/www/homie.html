@@ -815,6 +815,103 @@ html, body {
   .cfg-row, .cfg-row-3 { grid-template-columns:1fr; }
   .popup-room-panel { grid-template-columns:1fr; }
 }
+
+/* ════════════════════════════════════════════════════
+   ENTITY PICKER + MEDIA BROWSER
+   ════════════════════════════════════════════════════ */
+.cfg-input-row { display:flex; gap:6px; align-items:center; }
+.cfg-input-row .cfg-input { flex:1; min-width:0; }
+.pick-btn {
+  flex-shrink:0; width:34px; height:34px; border-radius:8px;
+  background:var(--ac-1); border:1px solid var(--ac-3);
+  color:var(--accent); cursor:pointer; font-size:14px;
+  display:flex; align-items:center; justify-content:center;
+  transition:all .15s; padding:0;
+}
+.pick-btn:hover { background:var(--ac-2); border-color:var(--ac-5); }
+
+.picker-overlay, .media-browser-overlay {
+  position:fixed; inset:0; z-index:300;
+  background:rgba(0,0,0,.8); backdrop-filter:blur(6px);
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.picker-overlay.open, .media-browser-overlay.open { opacity:1; pointer-events:all; }
+
+.picker-modal {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:16px; width:min(480px,94vw); max-height:75vh;
+  display:flex; flex-direction:column; overflow:hidden;
+  box-shadow:0 24px 80px rgba(0,0,0,.6);
+}
+.picker-header {
+  display:flex; align-items:center; gap:10px; padding:.9rem 1rem;
+  border-bottom:1px solid var(--border); flex-shrink:0;
+}
+.picker-title {
+  font-size:7px; letter-spacing:.3em; text-transform:uppercase;
+  color:var(--text-dim); white-space:nowrap;
+}
+.picker-search {
+  flex:1; background:var(--surface2); border:1px solid var(--border);
+  border-radius:8px; padding:7px 12px; color:var(--text);
+  font-size:11px; font-family:'DM Mono',monospace; letter-spacing:.03em;
+}
+.picker-search:focus { outline:none; border-color:var(--ac-4); }
+.picker-list { flex:1; overflow-y:auto; }
+.picker-domain {
+  font-size:7px; letter-spacing:.28em; color:var(--text-dim);
+  text-transform:uppercase; padding:.55rem .9rem .25rem;
+  position:sticky; top:0; background:var(--surface);
+}
+.picker-item {
+  display:flex; align-items:center; gap:8px;
+  padding:7px 1rem; cursor:pointer; transition:background .1s;
+}
+.picker-item:hover { background:var(--ac-1); }
+.picker-entity-id {
+  font-family:'DM Mono',monospace; font-size:10px; color:var(--text);
+  flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.picker-entity-state {
+  font-size:9px; color:var(--accent); flex-shrink:0;
+  max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+
+.media-browser-modal {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:16px; width:min(600px,96vw); max-height:75vh;
+  display:flex; flex-direction:column; overflow:hidden;
+  box-shadow:0 24px 80px rgba(0,0,0,.6);
+}
+.media-browser-header {
+  display:flex; align-items:center; gap:10px; padding:.9rem 1rem;
+  border-bottom:1px solid var(--border); flex-shrink:0;
+}
+.media-breadcrumb {
+  flex:1; font-size:9px; font-family:'DM Mono',monospace;
+  color:var(--text-dim); letter-spacing:.04em;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.media-grid {
+  flex:1; overflow-y:auto;
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(90px,1fr));
+  gap:8px; padding:.8rem; align-content:start;
+}
+.media-item {
+  border-radius:10px; overflow:hidden; cursor:pointer;
+  background:var(--surface2); border:1px solid var(--border);
+  display:flex; flex-direction:column; transition:border-color .15s, transform .1s;
+  aspect-ratio:1; min-width:0;
+}
+.media-item:hover { border-color:var(--ac-4); transform:scale(1.03); }
+.media-thumb { width:100%; flex:1; object-fit:cover; min-height:0; }
+.media-item-name {
+  font-size:7px; padding:4px 6px; color:var(--text-dim); flex-shrink:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.5;
+}
+.media-folder { align-items:center; justify-content:center; flex-direction:column; gap:4px; }
+.media-folder-icon { font-size:26px; }
 </style>
 </head>
 <body>
@@ -1005,9 +1102,9 @@ html, body {
         <div class="cfg-tab-body active" id="tab-general">
           <div class="cfg-field"><label class="cfg-label"><span class="conn-dot" id="connDot"></span>Connection Status</label><div style="font-size:9px;color:rgba(255,255,255,.38);letter-spacing:.1em;font-family:'DM Mono',monospace" id="connStatusTxt">—</div></div>
           <div class="cfg-field"><label class="cfg-label">Dashboard Name</label><input class="cfg-input" id="cfgName" placeholder="Living Room" /></div>
-          <div class="cfg-field"><label class="cfg-label">Background Image URL</label><input class="cfg-input" id="cfgBg" placeholder="https://… or leave blank" /></div>
+          <div class="cfg-field"><label class="cfg-label">Background Image URL</label><div class="cfg-input-row"><input class="cfg-input" id="cfgBg" placeholder="https://… or leave blank" /><button class="pick-btn" onclick="openMediaBrowser('cfgBg')" title="Browse HA media">🖼</button></div></div>
           <div class="cfg-field"><label class="cfg-label">Greeting Subtitle</label><input class="cfg-input" id="cfgGreetSub" placeholder="Welcome Home" /></div>
-          <div class="cfg-field"><label class="cfg-label">Weather Entity</label><input class="cfg-input cfg-mono" id="cfgWeather" placeholder="weather.home" /></div>
+          <div class="cfg-field"><label class="cfg-label">Weather Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgWeather" placeholder="weather.home" /><button class="pick-btn" onclick="openEntityPicker('cfgWeather')" title="Pick entity">🔍</button></div></div>
           <div class="cfg-row">
             <div class="cfg-field"><label class="cfg-label">Temp Unit</label>
               <select class="cfg-input" id="cfgTempUnit"><option value="°C">°C</option><option value="°F">°F</option></select></div>
@@ -1035,8 +1132,8 @@ html, body {
           <div class="cfg-card">
             <div class="cfg-card-header"><div class="cfg-card-title">Ground Floor</div></div>
             <div class="cfg-row">
-              <div class="cfg-field"><label class="cfg-label">Temp Entity</label><input class="cfg-input cfg-mono" id="cfgF1Temp" placeholder="sensor.ground_temp" /></div>
-              <div class="cfg-field"><label class="cfg-label">Humidity Entity</label><input class="cfg-input cfg-mono" id="cfgF1Hum" placeholder="sensor.ground_hum" /></div>
+              <div class="cfg-field"><label class="cfg-label">Temp Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgF1Temp" placeholder="sensor.ground_temp" /><button class="pick-btn" onclick="openEntityPicker('cfgF1Temp')" title="Pick entity">🔍</button></div></div>
+              <div class="cfg-field"><label class="cfg-label">Humidity Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgF1Hum" placeholder="sensor.ground_hum" /><button class="pick-btn" onclick="openEntityPicker('cfgF1Hum')" title="Pick entity">🔍</button></div></div>
             </div>
             <div class="cfg-field"><label class="cfg-label">Label</label><input class="cfg-input" id="cfgF1Label" placeholder="Ground Floor" /></div>
           </div>
@@ -1044,8 +1141,8 @@ html, body {
             <div class="cfg-card-header"><div class="cfg-card-title">Upper Floor</div><div class="mini-toggle" id="tF2" onclick="mtoggle('tF2','cfgF2En')"></div></div>
             <input type="hidden" id="cfgF2En" value="false" />
             <div class="cfg-row">
-              <div class="cfg-field"><label class="cfg-label">Temp Entity</label><input class="cfg-input cfg-mono" id="cfgF2Temp" placeholder="sensor.upper_temp" /></div>
-              <div class="cfg-field"><label class="cfg-label">Humidity Entity</label><input class="cfg-input cfg-mono" id="cfgF2Hum" placeholder="sensor.upper_hum" /></div>
+              <div class="cfg-field"><label class="cfg-label">Temp Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgF2Temp" placeholder="sensor.upper_temp" /><button class="pick-btn" onclick="openEntityPicker('cfgF2Temp')" title="Pick entity">🔍</button></div></div>
+              <div class="cfg-field"><label class="cfg-label">Humidity Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgF2Hum" placeholder="sensor.upper_hum" /><button class="pick-btn" onclick="openEntityPicker('cfgF2Hum')" title="Pick entity">🔍</button></div></div>
             </div>
             <div class="cfg-field"><label class="cfg-label">Label</label><input class="cfg-input" id="cfgF2Label" placeholder="Upper Floor" /></div>
           </div>
@@ -1053,8 +1150,8 @@ html, body {
             <div class="cfg-card-header"><div class="cfg-card-title">Solar / Battery</div><div class="mini-toggle" id="tSolar" onclick="mtoggle('tSolar','cfgSolarEn')"></div></div>
             <input type="hidden" id="cfgSolarEn" value="false" />
             <div class="cfg-row">
-              <div class="cfg-field"><label class="cfg-label">Production (kW)</label><input class="cfg-input cfg-mono" id="cfgSolarProd" placeholder="sensor.solar_power" /></div>
-              <div class="cfg-field"><label class="cfg-label">Battery SoC (%)</label><input class="cfg-input cfg-mono" id="cfgSolarBatt" placeholder="sensor.battery_soc" /></div>
+              <div class="cfg-field"><label class="cfg-label">Production (kW)</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgSolarProd" placeholder="sensor.solar_power" /><button class="pick-btn" onclick="openEntityPicker('cfgSolarProd')" title="Pick entity">🔍</button></div></div>
+              <div class="cfg-field"><label class="cfg-label">Battery SoC (%)</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgSolarBatt" placeholder="sensor.battery_soc" /><button class="pick-btn" onclick="openEntityPicker('cfgSolarBatt')" title="Pick entity">🔍</button></div></div>
             </div>
           </div>
         </div>
@@ -1091,7 +1188,7 @@ html, body {
 
         <!-- MEDIA -->
         <div class="cfg-tab-body" id="tab-media">
-          <div class="cfg-field"><label class="cfg-label">Media Player Entity</label><input class="cfg-input cfg-mono" id="cfgMedia" placeholder="media_player.living_room" /></div>
+          <div class="cfg-field"><label class="cfg-label">Media Player Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgMedia" placeholder="media_player.living_room" /><button class="pick-btn" onclick="openEntityPicker('cfgMedia')" title="Pick entity">🔍</button></div></div>
           <div class="cfg-field"><label class="cfg-label">Calendar Entities (comma-separated)</label><input class="cfg-input cfg-mono" id="cfgCalendars" placeholder="calendar.home, calendar.work" /></div>
         </div>
 
@@ -1137,7 +1234,7 @@ html, body {
         <div class="cfg-field"><label class="cfg-label">Dashboard Name</label><input class="cfg-input" id="edName" placeholder="Living Room" /></div>
         <div class="cfg-field"><label class="cfg-label">Short Description</label><input class="cfg-input" id="edDesc" placeholder="Ground floor controls" /></div>
       </div>
-      <div class="cfg-field"><label class="cfg-label">Background Image URL</label><input class="cfg-input" id="edBg" placeholder="https://… (optional)" /></div>
+      <div class="cfg-field"><label class="cfg-label">Background Image URL</label><div class="cfg-input-row"><input class="cfg-input" id="edBg" placeholder="https://… (optional)" /><button class="pick-btn" onclick="openMediaBrowser('edBg')" title="Browse HA media">🖼</button></div></div>
       <div class="cfg-field"><label class="cfg-label">HA Instance</label>
         <select class="cfg-input" id="edConnSel"><!-- populated --></select></div>
       <div class="cfg-row">
@@ -1175,6 +1272,34 @@ html, body {
       <button class="cfg-btn danger" id="edDeleteBtn" onclick="deleteDb()" style="display:none">Delete Dashboard</button>
       <button class="cfg-btn" onclick="saveEditor()">Create Dashboard →</button>
     </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     ENTITY PICKER MODAL
+     ══════════════════════════════════════════════ -->
+<div class="picker-overlay" id="entityPickerOverlay" onclick="if(event.target===this)closeEntityPicker()">
+  <div class="picker-modal">
+    <div class="picker-header">
+      <span class="picker-title">Pick Entity</span>
+      <input class="picker-search" id="pickerSearch" placeholder="Search entity or domain…" oninput="renderPickerList(this.value)" />
+      <button class="cfg-close" onclick="closeEntityPicker()">✕</button>
+    </div>
+    <div class="picker-list" id="pickerList"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     MEDIA BROWSER MODAL
+     ══════════════════════════════════════════════ -->
+<div class="media-browser-overlay" id="mediaBrowserOverlay" onclick="if(event.target===this)closeMediaBrowser()">
+  <div class="media-browser-modal">
+    <div class="media-browser-header">
+      <span class="picker-title">Media Browser</span>
+      <span class="media-breadcrumb" id="mediaBreadcrumb">/ local</span>
+      <button class="cfg-close" onclick="closeMediaBrowser()">✕</button>
+    </div>
+    <div class="media-grid" id="mediaGrid"></div>
   </div>
 </div>
 
@@ -2038,7 +2163,7 @@ function buildStatCards() {
         <div class="cfg-field" style="grid-column:span 2"><label class="cfg-label">Label</label><input class="cfg-input" value="${s.label||''}" placeholder="Temperature" onchange="DB.stats[${i}].label=this.value"/></div>
       </div>
       <div class="cfg-row">
-        <div class="cfg-field"><label class="cfg-label">Entity ID</label><input class="cfg-input cfg-mono" value="${s.entity||''}" placeholder="sensor.temp" onchange="DB.stats[${i}].entity=this.value"/></div>
+        <div class="cfg-field"><label class="cfg-label">Entity ID</label><div class="cfg-input-row"><input id="si-ent-${i}" class="cfg-input cfg-mono" value="${s.entity||''}" placeholder="sensor.temp" onchange="DB.stats[${i}].entity=this.value"/><button class="pick-btn" onclick="openEntityPicker('si-ent-${i}')" title="Pick entity">🔍</button></div></div>
         <div class="cfg-field"><label class="cfg-label">Unit</label><input class="cfg-input" value="${s.unit||''}" placeholder="°C" onchange="DB.stats[${i}].unit=this.value"/></div>
       </div>
     </div>`).join('');
@@ -2052,7 +2177,8 @@ function buildLightRooms() {
       <div class="cfg-card-header"><div class="cfg-card-title">${r.name||'Room '+(ri+1)}</div><button class="cfg-btn danger sm" onclick="DB.lightRooms.splice(${ri},1);buildLightRooms()">Remove</button></div>
       <div class="cfg-field"><label class="cfg-label">Room Name</label><input class="cfg-input" value="${r.name||''}" placeholder="Living Room" onchange="DB.lightRooms[${ri}].name=this.value"/></div>
       ${(r.entities||[]).map((e,ei)=>`<div style="display:flex;gap:7px;margin-bottom:6px">
-        <input class="cfg-input cfg-mono" style="flex:2" value="${e.entity||''}" placeholder="light.entity" onchange="DB.lightRooms[${ri}].entities[${ei}].entity=this.value"/>
+        <input id="li-ent-${ri}-${ei}" class="cfg-input cfg-mono" style="flex:2" value="${e.entity||''}" placeholder="light.entity" onchange="DB.lightRooms[${ri}].entities[${ei}].entity=this.value"/>
+        <button class="pick-btn" onclick="openEntityPicker('li-ent-${ri}-${ei}')" title="Pick entity">🔍</button>
         <input class="cfg-input" style="flex:1" value="${e.label||''}" placeholder="Label" onchange="DB.lightRooms[${ri}].entities[${ei}].label=this.value"/>
         <button class="cfg-btn danger sm" onclick="DB.lightRooms[${ri}].entities.splice(${ei},1);buildLightRooms()">✕</button>
       </div>`).join('')}
@@ -2071,7 +2197,7 @@ function buildSceneItems() {
         <div class="cfg-field"><label class="cfg-label">Label</label><input class="cfg-input" value="${s.label||''}" placeholder="Movie" onchange="DB.scenes[${i}].label=this.value"/></div>
         <div class="cfg-field"><label class="cfg-label">Color</label><input class="cfg-input" type="color" value="${s.color||'#222222'}" onchange="DB.scenes[${i}].color=this.value" style="height:40px;padding:2px 6px;cursor:pointer"/></div>
       </div>
-      <div class="cfg-field"><label class="cfg-label">Entity ID</label><input class="cfg-input cfg-mono" value="${s.entity||''}" placeholder="scene.movie" onchange="DB.scenes[${i}].entity=this.value"/></div>
+      <div class="cfg-field"><label class="cfg-label">Entity ID</label><div class="cfg-input-row"><input id="sc-ent-${i}" class="cfg-input cfg-mono" value="${s.entity||''}" placeholder="scene.movie" onchange="DB.scenes[${i}].entity=this.value"/><button class="pick-btn" onclick="openEntityPicker('sc-ent-${i}')" title="Pick entity">🔍</button></div></div>
     </div>`).join('');
 }
 function addScene() { DB.scenes=DB.scenes||[]; DB.scenes.push({label:'Scene',entity:'',emoji:'✨',color:'#1a1a2e'}); buildSceneItems(); }
@@ -2085,7 +2211,7 @@ function buildSimpleItems(key, containerId, placeholder, defaultLabel) {
         <button class="cfg-btn danger sm" onclick="DB['${key}'].splice(${i},1);buildSimpleItems('${key}','${containerId}','${placeholder}','${defaultLabel}')">Remove</button>
       </div>
       <div class="cfg-row">
-        <div class="cfg-field"><label class="cfg-label">Entity ID</label><input class="cfg-input cfg-mono" value="${e.entity||''}" placeholder="${placeholder}" onchange="DB['${key}'][${i}].entity=this.value"/></div>
+        <div class="cfg-field"><label class="cfg-label">Entity ID</label><div class="cfg-input-row"><input id="smpl-ent-${key}-${i}" class="cfg-input cfg-mono" value="${e.entity||''}" placeholder="${placeholder}" onchange="DB['${key}'][${i}].entity=this.value"/><button class="pick-btn" onclick="openEntityPicker('smpl-ent-${key}-${i}')" title="Pick entity">🔍</button></div></div>
         <div class="cfg-field"><label class="cfg-label">Label</label><input class="cfg-input" value="${e.label||''}" placeholder="${defaultLabel}" onchange="DB['${key}'][${i}].label=this.value"/></div>
       </div>
     </div>`).join('');
@@ -2102,6 +2228,156 @@ function buildChipCfg() {
       <div class="chip-cfg-left"><span class="chip-cfg-icon">${chip.icon}</span><span class="chip-cfg-name">${chip.label}</span></div>
       <div class="mini-toggle ${DB.chips?.[chip.key]?'on':''}" onclick="DB.chips['${chip.key}']=!DB.chips['${chip.key}'];this.className='mini-toggle'+(DB.chips['${chip.key}']?' on':'');buildChips()"></div>
     </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════
+// ENTITY PICKER
+// ═══════════════════════════════════════════════
+let pickerTargetId    = null;
+let pickerAllEntities = [];
+
+function openEntityPicker(inputId) {
+  pickerTargetId    = inputId;
+  pickerAllEntities = Object.entries(entityStates).map(([id, s]) => ({
+    entity_id: id, state: s.state, domain: id.split('.')[0]
+  })).sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+  document.getElementById('pickerSearch').value = '';
+  document.getElementById('entityPickerOverlay').classList.add('open');
+  renderPickerList('');
+  setTimeout(() => document.getElementById('pickerSearch').focus(), 50);
+}
+
+function closeEntityPicker() {
+  document.getElementById('entityPickerOverlay').classList.remove('open');
+  pickerTargetId = null;
+}
+
+function renderPickerList(filter) {
+  const list = document.getElementById('pickerList');
+  const q    = filter.toLowerCase().trim();
+  const src  = q
+    ? pickerAllEntities.filter(e => e.entity_id.toLowerCase().includes(q) || e.state.toLowerCase().includes(q))
+    : pickerAllEntities;
+
+  if (!src.length) {
+    list.innerHTML = `<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">${pickerAllEntities.length ? 'No matches' : 'No entities — connect to HA first'}</div>`;
+    return;
+  }
+
+  const groups = {};
+  src.forEach(e => { (groups[e.domain] = groups[e.domain] || []).push(e); });
+
+  list.innerHTML = Object.keys(groups).sort().map(domain =>
+    `<div class="picker-domain">${domain}</div>` +
+    groups[domain].map(e =>
+      `<div class="picker-item" onclick="selectEntity(${JSON.stringify(e.entity_id)})">
+         <div class="picker-entity-id">${e.entity_id}</div>
+         <div class="picker-entity-state">${e.state}</div>
+       </div>`
+    ).join('')
+  ).join('');
+}
+
+function selectEntity(entityId) {
+  const el = document.getElementById(pickerTargetId);
+  if (el) { el.value = entityId; el.dispatchEvent(new Event('change')); }
+  closeEntityPicker();
+}
+
+// ═══════════════════════════════════════════════
+// MEDIA BROWSER
+// ═══════════════════════════════════════════════
+let mediaBrowserTargetId = null;
+let mediaBrowserConnId   = null;
+let mediaBrowserStack    = [];
+let mediaBrowserItems    = [];
+
+function openMediaBrowser(inputId) {
+  mediaBrowserTargetId = inputId;
+  const conn = CONNS.find(c => c.id === DB?.connId) || CONNS[0];
+  if (!conn) { alert('No HA connection configured.'); return; }
+  mediaBrowserConnId = conn.id;
+  mediaBrowserStack  = [];
+  document.getElementById('mediaBrowserOverlay').classList.add('open');
+  mediaBrowse('media-source://media_source/local');
+}
+
+function closeMediaBrowser() {
+  document.getElementById('mediaBrowserOverlay').classList.remove('open');
+  mediaBrowserTargetId = null;
+}
+
+function mediaBrowse(contentId) {
+  updateMediaBreadcrumb();
+  const grid = document.getElementById('mediaGrid');
+  if (!wsConnected || !ws) {
+    grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">Connect to HA first</div>';
+    return;
+  }
+  grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">Loading…</div>';
+  const id = msgId++;
+  pendingCalls[id] = result => renderMediaGrid(result);
+  send({ id, type: 'media_source/browse_media', media_content_id: contentId });
+}
+
+function updateMediaBreadcrumb() {
+  const el = document.getElementById('mediaBreadcrumb');
+  if (!el) return;
+  el.textContent = mediaBrowserStack.length
+    ? '/ ' + mediaBrowserStack.map(s => s.title).join(' / ')
+    : '/ local';
+}
+
+function renderMediaGrid(result) {
+  mediaBrowserItems = result?.children || [];
+  const grid = document.getElementById('mediaGrid');
+  if (!mediaBrowserItems.length) {
+    grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">Empty folder</div>';
+    return;
+  }
+  let html = '';
+  if (mediaBrowserStack.length) {
+    html += `<div class="media-item media-folder" onclick="mediaBrowseBack()"><div class="media-folder-icon">⬅</div><div class="media-item-name">Back</div></div>`;
+  }
+  mediaBrowserItems.forEach((item, idx) => {
+    if (item.can_expand) {
+      html += `<div class="media-item media-folder" onclick="mediaBrowseInto(${idx})"><div class="media-folder-icon">📁</div><div class="media-item-name">${item.title}</div></div>`;
+    } else {
+      const rawThumb = item.thumbnail || '';
+      const thumb    = rawThumb.startsWith('/') ? `/ha-media/${mediaBrowserConnId}${rawThumb.split('?')[0]}` : rawThumb;
+      html += `<div class="media-item" onclick="selectMediaItem(${idx})">
+        ${thumb ? `<img class="media-thumb" src="${thumb}" loading="lazy" onerror="this.style.display='none'">` : '<div class="media-thumb" style="display:flex;align-items:center;justify-content:center;font-size:24px">🖼</div>'}
+        <div class="media-item-name">${item.title}</div>
+      </div>`;
+    }
+  });
+  grid.innerHTML = html;
+}
+
+function mediaBrowseInto(idx) {
+  const item = mediaBrowserItems[idx];
+  if (!item) return;
+  mediaBrowserStack.push({ id: item.media_content_id, title: item.title });
+  mediaBrowse(item.media_content_id);
+}
+
+function mediaBrowseBack() {
+  mediaBrowserStack.pop();
+  const contentId = mediaBrowserStack.length
+    ? mediaBrowserStack[mediaBrowserStack.length - 1].id
+    : 'media-source://media_source/local';
+  mediaBrowse(contentId);
+}
+
+function selectMediaItem(idx) {
+  const item = mediaBrowserItems[idx];
+  if (!item) return;
+  const prefix = 'media-source://media_source';
+  let url = item.media_content_id;
+  if (url.startsWith(prefix)) url = `/ha-media/${mediaBrowserConnId}/media${url.slice(prefix.length)}`;
+  const el = document.getElementById(mediaBrowserTargetId);
+  if (el) { el.value = url; el.dispatchEvent(new Event('change')); }
+  closeMediaBrowser();
 }
 
 // ═══════════════════════════════════════════════
