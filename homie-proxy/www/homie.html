@@ -25,14 +25,23 @@
   Either way, the token never appears in this HTML file.
 -->
 <script>
-  // Try to load proxy-generated config first, fall back to manual config.js
+  // Load config asynchronously; signal boot() once it resolves.
+  // DOMContentLoaded may fire before the script finishes — the flag + pending
+  // callback pattern handles both orderings.
+  window._cfgReady = false;
   (function() {
+    function onCfgLoaded() {
+      window._cfgReady = true;
+      if (window._cfgPending) window._cfgPending();
+    }
     var s = document.createElement('script');
     s.src = '/client-config.js';
+    s.onload = onCfgLoaded;
     s.onerror = function() {
       var fallback = document.createElement('script');
       fallback.src = 'config.js';
-      fallback.onerror = function() { window.HOMIE_CONNECTIONS = []; };
+      fallback.onload = onCfgLoaded;
+      fallback.onerror = function() { window.HOMIE_CONNECTIONS = []; onCfgLoaded(); };
       document.head.appendChild(fallback);
     };
     document.head.appendChild(s);
@@ -1359,19 +1368,26 @@ let CONNS        = [];    // from config.js
 // BOOT
 // ═══════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
-  CONNS = window.HOMIE_CONNECTIONS || [];
-  loadAllDashboards();
-  buildConnRow();
-  buildDbGrid();
-  buildThemeGrid();
-  populateConnSelects();
-  startClock();
+  function boot() {
+    CONNS = window.HOMIE_CONNECTIONS || [];
+    loadAllDashboards();
+    buildConnRow();
+    buildDbGrid();
+    buildThemeGrid();
+    populateConnSelects();
+    startClock();
+  }
+
+  // client-config.js may still be loading — defer boot until it signals ready
+  if (window._cfgReady) { boot(); }
+  else { window._cfgPending = boot; }
 
   // keyboard
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       document.querySelectorAll('.popup-overlay.open').forEach(p => p.classList.remove('open'));
       closeCfg(); closeEditor();
+      closeEntityPicker(); closeMediaBrowser();
     }
   });
 
