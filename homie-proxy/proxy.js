@@ -99,7 +99,7 @@ app.get('/client-config.js', (req, res) => {
   const safeConns = CONNECTIONS.map(c => ({
     id:       c.id,
     label:    c.label || c.id,
-    proxyUrl: `${proto}://${host}/proxy/${c.id}`,
+    proxyUrl: `${proto}://${host}/proxy/${encodeURIComponent(c.id)}`,
   }));
 
   res.setHeader('Content-Type', 'application/javascript');
@@ -148,7 +148,7 @@ const wss = new WebSocketServer({ server, path: '/proxy' });
 wss.on('connection', (browserWs, req) => {
   // Parse the connection ID from the URL path: /proxy/<id>
   const parts  = req.url.split('/').filter(Boolean); // ['proxy', '<id>']
-  const connId = parts[1] || '';
+  const connId = decodeURIComponent(parts[1] || '');
   const conn   = CONN_MAP[connId];
 
   // Derive client IP (respects X-Forwarded-For from HA ingress proxy)
