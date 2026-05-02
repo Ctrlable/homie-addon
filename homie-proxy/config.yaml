@@ -3,7 +3,7 @@ name: "Homie Dashboard Proxy"
 description: >-
   Secure WebSocket proxy for the Homie smart home dashboard.
   Stores HA tokens server-side so they are never exposed to the browser.
-version: "1.0.0"
+version: "1.0.1"
 slug: "homie_proxy"
 url: "https://github.com/Ctrlable/homie-addon"
 
@@ -50,7 +50,7 @@ schema:
   connections:
     - id: str
       label: str
-      ha_url: url
+      ha_url: str
       token: password   # HA renders this as a masked input field
       wan_url: str?     # optional external URL
 
