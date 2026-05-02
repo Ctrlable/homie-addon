@@ -145,12 +145,15 @@ app.get('*', (_req, res) => {
 });
 
 // ── WebSocket proxy server ────────────────────────────────────────────────
-const wss = new WebSocketServer({ server, path: '/proxy' });
+// No path option — ws exact-matches the full URL so /proxy/<id> would never
+// match /proxy. Route manually in the handler instead.
+const wss = new WebSocketServer({ server });
 
 // Route: ws://host/proxy/<connId>
 wss.on('connection', (browserWs, req) => {
   // Parse the connection ID from the URL path: /proxy/<id>
   const parts  = req.url.split('/').filter(Boolean); // ['proxy', '<id>']
+  if (parts[0] !== 'proxy') { browserWs.close(4404, 'Not found'); return; }
   const connId = decodeURIComponent(parts[1] || '');
   const conn   = CONN_MAP[connId];
 
