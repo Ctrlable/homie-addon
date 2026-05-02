@@ -59,4 +59,4 @@ map:
   - addon_config:rw
 
 # Resources — the proxy is very lightweight
-image: "ghcr.io/ctrlable/homie-proxy/{arch}"
+image: "ghcr.io/ctrlable/{arch}-homie-proxy"

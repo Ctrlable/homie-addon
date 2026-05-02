@@ -56,8 +56,8 @@ jobs:
           platforms: ${{ steps.platform.outputs.PLATFORM }}
           push: true
           tags: |
-            ghcr.io/ctrlable/homie-proxy/${{ matrix.arch }}:${{ steps.version.outputs.VERSION }}
-            ghcr.io/ctrlable/homie-proxy/${{ matrix.arch }}:latest
+            ghcr.io/ctrlable/${{ matrix.arch }}-homie-proxy:${{ steps.version.outputs.VERSION }}
+            ghcr.io/ctrlable/${{ matrix.arch }}-homie-proxy:latest
           build-args: |
             BUILD_FROM=ghcr.io/home-assistant/${{ matrix.arch }}-base:latest
           labels: |
@@ -67,7 +67,7 @@ jobs:
 
       - name: Make package public
         run: |
-          PKG="homie-proxy%2F${{ matrix.arch }}"
+          PKG="${{ matrix.arch }}-homie-proxy"
           curl -fsSL -X PATCH \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
