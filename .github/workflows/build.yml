@@ -10,6 +10,9 @@ jobs:
   build:
     name: Build ${{ matrix.arch }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     strategy:
       matrix:
         arch: [aarch64, amd64, armhf, armv7, i386]
@@ -61,3 +64,14 @@ jobs:
             io.hass.version=${{ steps.version.outputs.VERSION }}
             io.hass.type=addon
             io.hass.arch=${{ matrix.arch }}
+
+      - name: Make package public
+        run: |
+          PKG="homie-proxy%2F${{ matrix.arch }}"
+          curl -fsSL -X PATCH \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/orgs/Ctrlable/packages/container/${PKG}" \
+            -d '{"visibility":"public"}' \
+          && echo "Package ${PKG} is now public" || echo "Warning: could not set visibility (may need manual step)"
