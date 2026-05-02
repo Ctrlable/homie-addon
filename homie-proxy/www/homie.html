@@ -35,7 +35,7 @@
       if (window._cfgPending) window._cfgPending();
     }
     var s = document.createElement('script');
-    s.src = '/client-config.js';
+    s.src = 'client-config.js';
     s.onload = onCfgLoaded;
     s.onerror = function() {
       var fallback = document.createElement('script');
@@ -2360,7 +2360,7 @@ function renderMediaGrid(result) {
       html += `<div class="media-item media-folder" onclick="mediaBrowseInto(${idx})"><div class="media-folder-icon">📁</div><div class="media-item-name">${item.title}</div></div>`;
     } else {
       const rawThumb = item.thumbnail || '';
-      const thumb    = rawThumb.startsWith('/') ? `/ha-media/${mediaBrowserConnId}${rawThumb.split('?')[0]}` : rawThumb;
+      const thumb    = rawThumb.startsWith('/') ? `ha-media/${mediaBrowserConnId}${rawThumb.split('?')[0]}` : rawThumb;
       html += `<div class="media-item" onclick="selectMediaItem(${idx})">
         ${thumb ? `<img class="media-thumb" src="${thumb}" loading="lazy" onerror="this.style.display='none'">` : '<div class="media-thumb" style="display:flex;align-items:center;justify-content:center;font-size:24px">🖼</div>'}
         <div class="media-item-name">${item.title}</div>
@@ -2390,7 +2390,7 @@ function selectMediaItem(idx) {
   if (!item) return;
   const prefix = 'media-source://media_source';
   let url = item.media_content_id;
-  if (url.startsWith(prefix)) url = `/ha-media/${mediaBrowserConnId}/media${url.slice(prefix.length)}`;
+  if (url.startsWith(prefix)) url = `ha-media/${mediaBrowserConnId}/media${url.slice(prefix.length)}`;
   const el = document.getElementById(mediaBrowserTargetId);
   if (el) { el.value = url; el.dispatchEvent(new Event('change')); }
   closeMediaBrowser();

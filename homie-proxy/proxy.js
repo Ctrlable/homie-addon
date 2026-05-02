@@ -93,13 +93,16 @@ app.use(express.static(path.join(__dirname, 'www')));
  */
 app.get('/client-config.js', (req, res) => {
   // Determine the host the browser used to reach us
-  const host = req.headers['x-forwarded-host'] || req.headers.host || `homeassistant.local:${PORT}`;
-  const proto = req.headers['x-forwarded-proto'] === 'https' ? 'wss' : 'ws';
+  const host     = req.headers['x-forwarded-host'] || req.headers.host || `homeassistant.local:${PORT}`;
+  const proto    = req.headers['x-forwarded-proto'] === 'https' ? 'wss' : 'ws';
+  // HA ingress sets X-Ingress-Path (e.g. /api/hassio_ingress/TOKEN).
+  // Include it so WebSocket URLs resolve correctly through the ingress proxy.
+  const basePath = (req.headers['x-ingress-path'] || '').replace(/\/$/, '');
 
   const safeConns = CONNECTIONS.map(c => ({
     id:       c.id,
     label:    c.label || c.id,
-    proxyUrl: `${proto}://${host}/proxy/${encodeURIComponent(c.id)}`,
+    proxyUrl: `${proto}://${host}${basePath}/proxy/${encodeURIComponent(c.id)}`,
   }));
 
   res.setHeader('Content-Type', 'application/javascript');
