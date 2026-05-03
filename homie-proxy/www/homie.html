@@ -1803,7 +1803,7 @@ function connectWS(conn, resolvedUrl) {
     const proto    = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const basePath = window.location.pathname.replace(/\/[^/]*$/, '');
     const wsUrl    = `${proto}//${window.location.host}${basePath}/proxy/${encodeURIComponent(conn.id)}`;
-    log('info', `[${conn.id}] Connecting via proxy: ${wsUrl}`);
+    console.info(`[homie] [${conn.id}] Connecting via proxy: ${wsUrl}`);
     setConnStatus('connecting', wsUrl, true);
     try { ws = new WebSocket(wsUrl); } catch(e) { setConnStatus('err', wsUrl, true); return; }
     ws.onclose = () => {
@@ -1817,7 +1817,10 @@ function connectWS(conn, resolvedUrl) {
     ws.onerror = () => setConnStatus('err', wsUrl, true);
     // In proxy mode HA sends auth_ok directly — no auth_required handshake
     // needed from the browser (proxy handles it). We just listen normally.
-    ws.onmessage = ev => handleMsg(JSON.parse(ev.data), null /* no token */);
+    ws.onmessage = ev => {
+      if (ev.data instanceof Blob) { ev.data.text().then(t => handleMsg(JSON.parse(t), null)); }
+      else { handleMsg(JSON.parse(ev.data), null); }
+    };
     return;
   }
 
@@ -1839,7 +1842,10 @@ function connectWS(conn, resolvedUrl) {
     }, 5000);
   };
   ws.onerror = () => setConnStatus('err', activeUrl, isLan);
-  ws.onmessage = ev => handleMsg(JSON.parse(ev.data), conn.token);
+  ws.onmessage = ev => {
+    if (ev.data instanceof Blob) { ev.data.text().then(t => handleMsg(JSON.parse(t), conn.token)); }
+    else { handleMsg(JSON.parse(ev.data), conn.token); }
+  };
 }
 
 function handleMsg(msg, token) {
@@ -2621,16 +2627,26 @@ function mediaBrowse(contentId) {
   mediaWs.onerror = () => {
     grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">Connection error</div>';
   };
-  mediaWs.onmessage = ev => {
-    const msg = JSON.parse(ev.data);
+  const handleMediaMsg = raw => {
+    let msg;
+    try { msg = JSON.parse(raw); } catch(e) { return; }
+    if (!msg) return;
     if (msg.type === 'auth_required') {
       if (conn.token) mediaWs.send(JSON.stringify({ type: 'auth', access_token: conn.token }));
+      else { mediaWsReady = true; doSend(); }
     } else if (msg.type === 'auth_ok') {
       mediaWsReady = true;
       doSend();
     } else if (msg.type === 'result') {
       const cb = mediaWsCalls[msg.id];
       if (cb) { cb(msg.success ? msg.result : null); delete mediaWsCalls[msg.id]; }
+    }
+  };
+  mediaWs.onmessage = ev => {
+    if (ev.data instanceof Blob) {
+      ev.data.text().then(handleMediaMsg);
+    } else {
+      handleMediaMsg(ev.data);
     }
   };
 }
