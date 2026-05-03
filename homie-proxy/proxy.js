@@ -274,34 +274,22 @@ app.get('/ha-api/:connId/*', (req, res) => {
   proxyHaHttp(req, res, conn, haPath, 'no-store');
 });
 
-// POST /ha-callservice/:connId/:domain/:service — calls an HA service via REST API
-// Used as fallback when the browser WebSocket is not connected.
+// POST /ha-callservice/:connId/:domain/:service
+// Calls an HA service via a server-side WebSocket (same haWsRequest path used by
+// the entity picker — this is the only approach proven to work in all environments).
 app.post('/ha-callservice/:connId/:domain/:service', express.json({ limit: '100kb' }), (req, res) => {
   const conn = CONN_MAP[decodeURIComponent(req.params.connId)];
   if (!conn) { res.status(404).json({ error: 'connection_not_found' }); return; }
   const domain  = decodeURIComponent(req.params.domain);
   const service = decodeURIComponent(req.params.service);
-  log('info', `[ha-callservice][${conn.id}][AUDIT] ${domain}.${service} entity=${req.body?.entity_id || '—'}`);
-  const body = JSON.stringify(req.body || {});
-  resolveHaUrl(conn).then(haUrl => {
-    const mod = haUrl.startsWith('https') ? require('https') : require('http');
-    const haReq = mod.request(`${haUrl}/api/services/${domain}/${service}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${conn.token}`,
-        'Content-Type':  'application/json',
-        'Content-Length': Buffer.byteLength(body),
-      },
-      rejectUnauthorized: false,
-    }, haRes => {
-      let data = '';
-      haRes.on('data', chunk => { data += chunk; });
-      haRes.on('end', () => res.status(haRes.statusCode).end(data));
+  const serviceData = req.body || {};
+  log('info', `[ha-callservice][${conn.id}][AUDIT] ${domain}.${service} entity=${serviceData.entity_id || '—'}`);
+  haWsRequest(conn, 'call_service', { domain, service, service_data: serviceData }, 10000)
+    .then(() => res.json({ ok: true }))
+    .catch(e => {
+      log('warn', `[ha-callservice][${conn.id}] ${domain}.${service} → ${e.message}`);
+      res.status(502).json({ error: e.message });
     });
-    haReq.on('error', e => { log('warn', `[ha-callservice][${conn.id}] ${e.message}`); res.status(502).json({ error: e.message }); });
-    haReq.write(body);
-    haReq.end();
-  }).catch(e => res.status(502).json({ error: e.message }));
 });
 
 // GET /dashboards — returns all saved dashboards (shared across browsers)

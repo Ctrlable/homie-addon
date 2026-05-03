@@ -1933,11 +1933,13 @@ function launchDashboard(id) {
   document.getElementById('managerScreen').classList.remove('active');
   document.getElementById('dashScreen').classList.add('active');
 
-  // resolve LAN vs WAN, then connect
+  // resolve LAN vs WAN, then connect WS (for real-time events)
   const conn = CONNS.find(c => c.id === DB.connId);
   if (conn) {
     setConnStatus('resolving');
     resolveUrl(conn).then(url => connectWS(conn, url));
+    // Load entity states immediately via HTTP — don't wait for WS auth
+    refreshEntityStates();
   }
 
   // fullscreen
@@ -2107,24 +2109,31 @@ function handleMsg(msg, token) {
 function send(obj) { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj)); }
 
 function callService(domain, service, data) {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    const id = msgId++; pendingCalls[id] = ()=>{};
-    send({id, type:'call_service', domain, service, service_data:data});
-    haptic('medium');
-    return;
-  }
-  // WS not open — use HTTP fallback via proxy REST endpoint
   const conn = CONNS.find(c => c.id === DB?.connId) || CONNS[0];
   if (!conn) { showToast('No HA connection configured'); return; }
+  haptic('medium');
   fetch(`ha-callservice/${encodeURIComponent(conn.id)}/${encodeURIComponent(domain)}/${encodeURIComponent(service)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data || {}),
-    signal: AbortSignal.timeout(10000),
+    signal: AbortSignal.timeout(12000),
   }).then(r => {
-    if (!r.ok) r.text().then(t => showToast(`Service call failed (${r.status})`));
-    else haptic('medium');
+    if (!r.ok) r.json().catch(() => ({})).then(d => showToast(`${domain}.${service} failed: ${d.error || r.status}`));
+    else setTimeout(refreshEntityStates, 500);
   }).catch(e => showToast(`Service call failed: ${e.message}`));
+}
+
+function refreshEntityStates() {
+  const conn = CONNS.find(c => c.id === DB?.connId) || CONNS[0];
+  if (!conn) return;
+  fetch(`ha-states/${encodeURIComponent(conn.id)}`, { signal: AbortSignal.timeout(15000) })
+    .then(r => r.ok ? r.json() : null)
+    .then(states => {
+      if (!Array.isArray(states)) return;
+      states.forEach(s => { entityStates[s.entity_id] = s; });
+      updateAll();
+    })
+    .catch(() => {});
 }
 
 function showToast(msg) {
