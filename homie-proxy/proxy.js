@@ -116,12 +116,9 @@ window.HOMIE_CONNECTIONS = ${JSON.stringify(safeConns, null, 2)};
 // Health check endpoint (used by HA watchdog)
 app.get('/health', (_req, res) => res.json({ status: 'ok', connections: Object.keys(CONN_MAP).length }));
 
-// GET /ha-media/:connId/* — proxy HA media files with auth token (browser never sees token)
-app.get('/ha-media/:connId/*', (req, res) => {
-  const conn = CONN_MAP[req.params.connId];
-  if (!conn) { res.status(404).end(); return; }
-  const haPath = req.path.replace(`/ha-media/${req.params.connId}`, '');
-  const qs     = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+// Shared HA HTTP proxy helper — adds auth token, pipes response
+function proxyHaHttp(req, res, conn, haPath, cacheControl) {
+  const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
   resolveHaUrl(conn).then(haUrl => {
     const fullUrl = haUrl + haPath + qs;
     const mod = haUrl.startsWith('https') ? require('https') : require('http');
@@ -132,11 +129,27 @@ app.get('/ha-media/:connId/*', (req, res) => {
       res.status(haRes.statusCode);
       const ct = haRes.headers['content-type'];
       if (ct) res.setHeader('Content-Type', ct);
-      res.setHeader('Cache-Control', 'max-age=60');
+      if (cacheControl) res.setHeader('Cache-Control', cacheControl);
       haRes.pipe(res);
     });
     haReq.on('error', () => res.status(502).end());
   }).catch(() => res.status(502).end());
+}
+
+// GET /ha-media/:connId/* — proxy HA media files (browser never sees token)
+app.get('/ha-media/:connId/*', (req, res) => {
+  const conn = CONN_MAP[req.params.connId];
+  if (!conn) { res.status(404).end(); return; }
+  const haPath = req.path.replace(`/ha-media/${req.params.connId}`, '');
+  proxyHaHttp(req, res, conn, haPath, 'max-age=60');
+});
+
+// GET /ha-api/:connId/* — proxy HA REST API calls (used by entity picker, etc.)
+app.get('/ha-api/:connId/*', (req, res) => {
+  const conn = CONN_MAP[req.params.connId];
+  if (!conn) { res.status(404).end(); return; }
+  const haPath = req.path.replace(`/ha-api/${req.params.connId}`, '');
+  proxyHaHttp(req, res, conn, haPath, 'no-store');
 });
 
 // Catch-all: serve homie.html for any unknown path (SPA behaviour)
