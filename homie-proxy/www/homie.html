@@ -49,6 +49,7 @@
 </script>
 
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Crimson+Text:ital,wght@0,400;1,400&family=DM+Mono:ital,wght@0,300;0,400;1,300&family=Josefin+Sans:wght@300;400&family=Lato:wght@300;400;700&family=Merriweather:ital,wght@0,300;0,400;1,300&family=Montserrat:wght@300;400;500;600&family=Oswald:wght@300;400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Raleway:wght@300;400&family=Roboto:wght@300;400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
 
 <style>
 /* ════════════════════════════════════════════════════
@@ -895,6 +896,43 @@ html, body {
   max-width:80px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 
+/* ─── Icon picker ─────────────────────────────────── */
+.icon-picker-body {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(68px,1fr));
+  gap:3px; padding:10px; overflow-y:auto; flex:1;
+}
+.icon-cell {
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:5px; padding:10px 4px; border-radius:8px; cursor:pointer;
+  border:1px solid transparent; transition:background .12s,border-color .12s;
+  min-height:58px;
+}
+.icon-cell:hover { background:var(--ac-1); border-color:var(--ac-3); }
+.icon-cell.active { background:var(--ac-2); border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+.icon-cell i.mdi { font-size:22px; color:var(--accent-hi); }
+.icon-cell-label {
+  font-size:6px; letter-spacing:.03em; color:var(--text-dim); text-align:center;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; width:100%; padding:0 3px;
+}
+.icon-cat-header {
+  grid-column:1/-1; font-size:7px; letter-spacing:.25em; text-transform:uppercase;
+  color:var(--text-dim); padding:10px 4px 4px; pointer-events:none;
+}
+.icon-no-results {
+  grid-column:1/-1; text-align:center; padding:3rem 1rem;
+  color:var(--text-dim); font-size:9px; letter-spacing:.2em;
+}
+.icon-pick-btn {
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  min-width:48px; height:40px; padding:0 12px;
+  background:var(--surface2); border:1px solid var(--border); border-radius:8px;
+  cursor:pointer; color:var(--accent-hi); flex-shrink:0;
+  transition:border-color .15s, background .15s;
+}
+.icon-pick-btn:hover { border-color:var(--ac-4); background:var(--ac-05); }
+.icon-pick-btn i.mdi { font-size:20px; }
+.icon-pick-btn .ipb-none { font-size:9px; letter-spacing:.08em; color:var(--text-dim); }
+
 .media-browser-modal {
   background:var(--surface); border:1px solid var(--border);
   border-radius:16px; width:min(600px,96vw); max-height:75vh;
@@ -1321,6 +1359,20 @@ html, body {
 </div>
 
 <!-- ══════════════════════════════════════════════
+     ICON PICKER MODAL
+     ══════════════════════════════════════════════ -->
+<div class="picker-overlay" id="iconPickerOverlay" onclick="if(event.target===this)closeIconPicker()">
+  <div class="picker-modal" style="width:min(600px,96vw);max-height:82vh">
+    <div class="picker-header">
+      <span class="picker-title">Pick Icon</span>
+      <input class="picker-search" id="iconPickerSearch" placeholder="Search icons (light, lock, fan, camera…)" oninput="renderIconGrid(this.value)" />
+      <button class="cfg-close" onclick="closeIconPicker()">✕</button>
+    </div>
+    <div class="icon-picker-body" id="iconPickerBody"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
      MEDIA BROWSER MODAL
      ══════════════════════════════════════════════ -->
 <div class="media-browser-overlay" id="mediaBrowserOverlay" onclick="if(event.target===this)closeMediaBrowser()">
@@ -1361,6 +1413,167 @@ const CHIP_DEFS = [
   {key:'climate', label:'Climate',  icon:'❄️', popup:'climatePopup'},
   {key:'covers',  label:'Covers',   icon:'🪟', popup:'coversPopup'},
   {key:'switches',label:'Switches', icon:'🔘', popup:'switchesPopup'}
+];
+
+const MDI_ICON_GROUPS = [
+  { cat:'Lighting', icons:[
+    'lightbulb','lightbulb-on','lightbulb-off','lightbulb-outline','lightbulb-on-outline',
+    'lightbulb-group','lightbulb-group-outline','lightbulb-multiple','lightbulb-multiple-outline',
+    'ceiling-light','ceiling-light-outline','ceiling-light-multiple',
+    'floor-lamp','floor-lamp-outline','floor-lamp-dual','floor-lamp-torchiere',
+    'lamp','lamp-outline','desk-lamp','desk-lamp-outline',
+    'led-strip','led-strip-variant','spotlight','spotlight-beam',
+    'string-lights','string-lights-off','wall-sconce','wall-sconce-round','wall-sconce-flat',
+    'light-recessed','light-flood','candle','coach-lamp','globe-light',
+    'outdoor-lamp','vanity-light','vanity-light-outline',
+  ]},
+  { cat:'Climate', icons:[
+    'thermometer','thermometer-high','thermometer-low','thermometer-lines',
+    'thermometer-minus','thermometer-plus','thermometer-alert','thermometer-off','thermometer-auto',
+    'temperature-celsius','temperature-fahrenheit',
+    'fan','fan-off','fan-speed-1','fan-speed-2','fan-speed-3','fan-alert','fan-minus','fan-plus','fan-auto',
+    'air-conditioner','air-filter','air-humidifier','air-humidifier-off','air-purifier','air-purifier-off',
+    'heat-wave','snowflake','snowflake-melt','snowflake-off',
+    'radiator','radiator-off','fireplace','fireplace-off',
+    'water-thermometer','water-thermometer-outline','hvac','hvac-off',
+    'weather-sunny','weather-partly-cloudy','weather-cloudy','weather-fog',
+    'weather-rainy','weather-pouring','weather-snowy','weather-snowy-rainy',
+    'weather-windy','weather-windy-variant','weather-hazy','weather-night',
+    'weather-lightning','weather-lightning-rainy','sun-thermometer',
+  ]},
+  { cat:'Security', icons:[
+    'lock','lock-open','lock-outline','lock-open-outline','lock-check','lock-check-outline',
+    'lock-alert','lock-alert-outline','lock-remove','lock-clock','lock-plus','lock-minus',
+    'shield','shield-check','shield-check-outline','shield-home','shield-home-outline',
+    'shield-lock','shield-lock-outline','shield-off','shield-alert','shield-alert-outline',
+    'shield-star','shield-star-outline','shield-account','shield-account-outline',
+    'camera','camera-outline','camera-off','camera-off-outline',
+    'camera-wireless','camera-wireless-outline','camera-home','camera-home-outline',
+    'cctv','cctv-off','security','security-network',
+    'motion-sensor','motion-sensor-off','motion-sensor-outline',
+    'alarm-light','alarm-light-off','alarm-light-outline',
+    'alarm-panel','alarm-panel-outline','alarm-check','alarm-off','alarm-plus',
+    'doorbell','doorbell-video','doorbell-video-outline',
+    'door','door-open','door-closed','door-closed-lock','door-sliding','door-sliding-open',
+    'window-open','window-closed','window-open-variant','window-closed-variant',
+    'window-shutter','window-shutter-open','window-shutter-alert',
+    'garage','garage-open','garage-variant','garage-open-variant','garage-alert',
+    'key','key-variant','key-chain','key-chain-variant','key-plus','key-remove',
+    'fingerprint','fingerprint-off','account-key','account-key-outline',
+    'nfc','nfc-variant','nfc-search-variant',
+  ]},
+  { cat:'Media', icons:[
+    'television','television-off','television-play','television-pause','television-ambient-light',
+    'television-guide','television-box','television-classic',
+    'speaker','speaker-off','speaker-bluetooth','speaker-wireless','speaker-multiple','speaker-play','speaker-pause',
+    'music','music-note','music-note-off','music-note-outline','music-box','music-box-outline',
+    'music-circle','music-circle-outline',
+    'radio','radio-off','radio-tower','amplifier','amplifier-off',
+    'remote','remote-off','remote-tv','remote-tv-off',
+    'cast','cast-off','cast-connected','cast-audio','cast-variant',
+    'headphones','headphones-off','headphones-bluetooth','headphones-settings',
+    'microphone','microphone-off','microphone-outline','microphone-off-outline',
+    'play','pause','stop','skip-next','skip-previous','rewind','fast-forward',
+    'volume-high','volume-medium','volume-low','volume-off','volume-mute',
+    'movie','movie-outline','movie-off','film','film-outline',
+    'youtube','netflix','plex','spotify',
+    'playlist-music','playlist-play','playlist-check',
+    'equalizer','equalizer-outline',
+  ]},
+  { cat:'Energy', icons:[
+    'solar-power','solar-power-variant','solar-power-variant-outline',
+    'solar-panel','solar-panel-large',
+    'lightning-bolt','lightning-bolt-outline','lightning-bolt-circle','lightning-bolt-circle-outline',
+    'flash','flash-off','flash-outline','flash-triangle','flash-triangle-outline',
+    'battery','battery-outline','battery-charging','battery-charging-outline',
+    'battery-high','battery-medium','battery-low','battery-alert','battery-alert-variant',
+    'battery-charging-high','battery-charging-medium','battery-charging-low',
+    'battery-plus','battery-plus-outline','battery-minus','battery-minus-outline',
+    'power-plug','power-plug-off','power-plug-outline','power-plug-off-outline',
+    'power-socket','power-socket-eu','power-socket-us','power-socket-uk','power-socket-au',
+    'power','power-off','power-cycle','power-standby','power-settings',
+    'meter-electric','meter-electric-outline','meter-gas','meter-gas-outline',
+    'meter-water','meter-water-outline','counter','speedometer',
+    'transmission-tower','transmission-tower-off','transmission-tower-import','transmission-tower-export',
+    'ev-station','car-electric','car-electric-outline',
+    'home-lightning-bolt','home-lightning-bolt-outline','home-battery','home-battery-outline',
+  ]},
+  { cat:'Home', icons:[
+    'home','home-outline','home-off','home-off-outline','home-modern','home-automation',
+    'home-assistant','home-alert','home-alert-outline','home-city','home-city-outline',
+    'home-account','home-map-marker','home-floor-0','home-floor-1','home-floor-2',
+    'sofa','sofa-outline','sofa-single','sofa-single-outline',
+    'bed','bed-outline','bed-double','bed-double-outline','bed-single','bed-single-outline','bed-queen','bed-king',
+    'shower','shower-head','bathtub','bathtub-outline','toilet','toilet-outline',
+    'washing-machine','washing-machine-alert','washing-machine-off','washer','dryer',
+    'dishwasher','dishwasher-alert','dishwasher-off',
+    'kitchen-counter','microwave','microwave-off','stove','refrigerator','refrigerator-outline',
+    'oven','toaster','toaster-off','toaster-oven','coffee-maker','coffee-maker-off',
+    'countertop','countertop-outline',
+    'desk','bookshelf','wardrobe','wardrobe-outline','chair-rolling','table-furniture',
+    'stairs','stairs-up','stairs-down',
+    'pool','pool-thermometer','hot-tub',
+    'robot','robot-outline','robot-vacuum','robot-vacuum-off','robot-mower','robot-mower-off',
+  ]},
+  { cat:'Covers', icons:[
+    'blinds','blinds-horizontal','blinds-horizontal-closed','blinds-open',
+    'blinds-vertical','blinds-vertical-closed',
+    'curtains','curtains-closed',
+    'roller-shade','roller-shade-closed',
+    'arrow-up-bold','arrow-down-bold','arrow-collapse-vertical','arrow-expand-vertical',
+    'valve','valve-open','valve-closed',
+  ]},
+  { cat:'Sensors', icons:[
+    'water','water-outline','water-off','water-off-outline',
+    'water-percent','water-percent-alert','water-check','water-check-outline',
+    'water-alert','water-alert-outline','water-pump','water-pump-off',
+    'water-well','water-well-outline',
+    'smoke','smoke-detector','smoke-detector-outline','smoke-detector-off','smoke-detector-off-outline',
+    'gas-cylinder','gas-burner','gas-station','gas-station-outline',
+    'leak','chemical-weapon','hazard-lights',
+    'eye','eye-outline','eye-off','eye-off-outline',
+    'bell','bell-outline','bell-off','bell-off-outline','bell-ring','bell-ring-outline',
+    'bell-badge','bell-badge-outline','bell-alert','bell-alert-outline',
+    'grass','leaf','leaf-off','sprout','sprout-outline','pine-tree','tree',
+    'flower','flower-outline','flower-tulip','flower-tulip-outline',
+    'weather-dust','air','lungs',
+  ]},
+  { cat:'Network', icons:[
+    'wifi','wifi-off','wifi-strength-1','wifi-strength-2','wifi-strength-3','wifi-strength-4',
+    'wifi-alert','wifi-lock','wifi-sync','wifi-check',
+    'bluetooth','bluetooth-off','bluetooth-connect','bluetooth-audio',
+    'zigbee','z-wave',
+    'router','router-network','router-wireless','router-wireless-off',
+    'server','server-network','server-off',
+    'cloud','cloud-outline','cloud-off','cloud-upload','cloud-download','cloud-check','cloud-sync',
+    'chip','integrated-circuit-chip','lan','lan-connect','lan-disconnect',
+    'hub','hub-outline','signal','signal-off','signal-variant','antenna',
+  ]},
+  { cat:'General', icons:[
+    'check','check-circle','check-circle-outline','check-all',
+    'close','close-circle','close-circle-outline',
+    'alert','alert-circle','alert-circle-outline','alert-outline','alert-box','alert-box-outline',
+    'information','information-outline','information-slab-circle',
+    'help','help-circle','help-circle-outline',
+    'plus','plus-circle','plus-circle-outline','minus','minus-circle','minus-circle-outline',
+    'star','star-outline','star-half','heart','heart-outline','heart-off',
+    'thumb-up','thumb-up-outline','thumb-down','thumb-down-outline',
+    'cog','cog-outline','cog-off','wrench','wrench-outline','tools','tools-off','hammer',
+    'refresh','refresh-circle','reload','autorenew','sync',
+    'timer','timer-off','timer-outline','timer-alert','timer-check',
+    'clock','clock-outline','clock-fast','clock-alert',
+    'alarm','alarm-off','alarm-check','alarm-plus','alarm-multiple',
+    'calendar','calendar-outline','calendar-check','calendar-alert','calendar-month','calendar-today',
+    'map','map-outline','map-marker','map-marker-outline','navigation',
+    'account','account-outline','account-group','account-group-outline','account-circle',
+    'email','email-outline','phone','phone-outline','chat','message','message-outline',
+    'currency-usd','cash','credit-card','wallet',
+    'magnify','magnify-plus','magnify-minus',
+    'toggle-switch','toggle-switch-off','toggle-switch-outline','toggle-switch-off-outline',
+    'car','car-outline','car-off','bus','bike','bicycle','truck','airplane',
+    'trending-up','trending-down','chart-line','chart-bar','chart-pie',
+    'run','walk','human','baby',
+  ]},
 ];
 
 const DB_DEFAULTS = () => ({
@@ -1972,7 +2185,7 @@ function buildHeroStats() {
   c.style.gridTemplateColumns = `repeat(${Math.min(5, stats.length)},1fr)`;
   c.innerHTML = stats.map((s,i) => `
     <div class="stat" onclick="statClick('${s.entity}')">
-      <div class="stat-label">${s.icon||''} ${s.label}</div>
+      <div class="stat-label">${renderIcon(s.icon)} ${s.label}</div>
       <div class="stat-value" id="sv-${i}">--</div>
     </div>`).join('');
 }
@@ -2094,7 +2307,7 @@ function buildScenesPopup() {
     (DB.scenes||[]).map((s,i)=>`
       <div class="scene-bubble" onclick="fireScene('${s.entity}',${i})">
         <div class="scene-icon" id="si-${i}" style="background:${s.color||'#222'}">
-          <span style="font-size:21px">${s.emoji||'✨'}</span>
+          <span style="font-size:${s.emoji&&s.emoji.startsWith('mdi:')?'22':'21'}px">${renderIcon(s.emoji||'✨')}</span>
         </div>
         <div class="scene-label">${s.label}</div>
       </div>`).join('');
@@ -2371,7 +2584,7 @@ function buildStatCards() {
     <div class="cfg-card">
       <div class="cfg-card-header"><div class="cfg-card-title">Stat ${i+1}</div><button class="cfg-btn danger sm" onclick="DB.stats.splice(${i},1);buildStatCards()">Remove</button></div>
       <div class="cfg-row-3">
-        <div class="cfg-field"><label class="cfg-label">Icon</label><input class="cfg-input" value="${s.icon||''}" placeholder="🌡" onchange="DB.stats[${i}].icon=this.value"/></div>
+        <div class="cfg-field"><label class="cfg-label">Icon</label><div class="cfg-input-row"><button class="icon-pick-btn" onclick="openIconPickerFor('stat',${i})" title="Pick icon">${iconBtnHtml(s.icon||'')}</button>${s.icon?`<button class="pick-btn" onclick="DB.stats[${i}].icon='';buildStatCards()" title="Clear icon" style="font-size:10px">✕</button>`:''}</div></div>
         <div class="cfg-field" style="grid-column:span 2"><label class="cfg-label">Label</label><input class="cfg-input" value="${s.label||''}" placeholder="Temperature" onchange="DB.stats[${i}].label=this.value"/></div>
       </div>
       <div class="cfg-row">
@@ -2405,7 +2618,7 @@ function buildSceneItems() {
     <div class="cfg-card">
       <div class="cfg-card-header"><div class="cfg-card-title">Scene ${i+1}</div><button class="cfg-btn danger sm" onclick="DB.scenes.splice(${i},1);buildSceneItems()">Remove</button></div>
       <div class="cfg-row-3">
-        <div class="cfg-field"><label class="cfg-label">Emoji</label><input class="cfg-input" value="${s.emoji||''}" placeholder="✨" onchange="DB.scenes[${i}].emoji=this.value"/></div>
+        <div class="cfg-field"><label class="cfg-label">Icon</label><div class="cfg-input-row"><button class="icon-pick-btn" onclick="openIconPickerFor('scene',${i})" title="Pick icon">${iconBtnHtml(s.emoji||'')}</button>${s.emoji?`<button class="pick-btn" onclick="DB.scenes[${i}].emoji='';buildSceneItems()" title="Clear icon" style="font-size:10px">✕</button>`:''}</div></div>
         <div class="cfg-field"><label class="cfg-label">Label</label><input class="cfg-input" value="${s.label||''}" placeholder="Movie" onchange="DB.scenes[${i}].label=this.value"/></div>
         <div class="cfg-field"><label class="cfg-label">Color</label><input class="cfg-input" type="color" value="${s.color||'#222222'}" onchange="DB.scenes[${i}].color=this.value" style="height:40px;padding:2px 6px;cursor:pointer"/></div>
       </div>
@@ -2577,6 +2790,95 @@ function selectEntity(entityId) {
     setTimeout(() => { el.style.background = ''; }, 600);
   }
   closeEntityPicker();
+}
+
+// ═══════════════════════════════════════════════
+// ICON PICKER
+// ═══════════════════════════════════════════════
+let _iconPickTarget = null; // { key:'stat'|'scene', idx:number }
+
+// Render mdi: values as <i> elements; plain text/emoji pass through unchanged
+function renderIcon(val) {
+  if (!val) return '';
+  if (val.startsWith('mdi:')) return `<i class="mdi mdi-${val.slice(4)}"></i>`;
+  return val;
+}
+
+// Button preview used in config panels
+function iconBtnHtml(val) {
+  if (!val) return '<span class="ipb-none">none</span>';
+  if (val.startsWith('mdi:')) return `<i class="mdi mdi-${val.slice(4)}"></i>`;
+  return `<span style="font-size:20px">${val}</span>`;
+}
+
+function openIconPickerFor(key, idx) {
+  _iconPickTarget = { key, idx };
+  document.getElementById('iconPickerSearch').value = '';
+  document.getElementById('iconPickerOverlay').classList.add('open');
+  renderIconGrid('');
+  setTimeout(() => document.getElementById('iconPickerSearch').focus(), 50);
+}
+
+function closeIconPicker() {
+  document.getElementById('iconPickerOverlay').classList.remove('open');
+  _iconPickTarget = null;
+}
+
+function renderIconGrid(filter) {
+  const body = document.getElementById('iconPickerBody');
+  const q    = filter.toLowerCase().trim().replace(/\s+/g, '-');
+  const q2   = filter.toLowerCase().trim();
+
+  // Determine currently selected value for active highlight
+  let selName = '';
+  if (_iconPickTarget) {
+    const { key, idx } = _iconPickTarget;
+    const val = key === 'stat' ? (DB.stats[idx]?.icon||'') : (DB.scenes[idx]?.emoji||'');
+    if (val.startsWith('mdi:')) selName = val.slice(4);
+  }
+
+  const noneCell = `<div class="icon-cell${!selName?' active':''}" onclick="selectIconFromPicker('')" title="No icon">
+    <i class="mdi mdi-close-circle-outline" style="opacity:.35"></i>
+    <span class="icon-cell-label">none</span>
+  </div>`;
+
+  if (q2) {
+    // Flat filtered list
+    const matches = MDI_ICON_GROUPS.flatMap(g =>
+      g.icons.filter(n => n.includes(q) || n.replace(/-/g,' ').includes(q2) || g.cat.toLowerCase().includes(q2))
+    );
+    if (!matches.length) {
+      body.innerHTML = noneCell + '<div class="icon-no-results">No icons match — try a different term</div>';
+      return;
+    }
+    body.innerHTML = noneCell + matches.map(n =>
+      `<div class="icon-cell${selName===n?' active':''}" onclick="selectIconFromPicker('${n}')" title="mdi:${n}">
+        <i class="mdi mdi-${n}"></i>
+        <span class="icon-cell-label">${n.replace(/-/g,' ')}</span>
+      </div>`
+    ).join('');
+  } else {
+    // Grouped by category with headers
+    body.innerHTML = noneCell + MDI_ICON_GROUPS.map(g =>
+      `<div class="icon-cat-header">${g.cat}</div>` +
+      g.icons.map(n =>
+        `<div class="icon-cell${selName===n?' active':''}" onclick="selectIconFromPicker('${n}')" title="mdi:${n}">
+          <i class="mdi mdi-${n}"></i>
+          <span class="icon-cell-label">${n.replace(/-/g,' ')}</span>
+        </div>`
+      ).join('')
+    ).join('');
+  }
+}
+
+function selectIconFromPicker(name) {
+  const val = name ? `mdi:${name}` : '';
+  if (_iconPickTarget) {
+    const { key, idx } = _iconPickTarget;
+    if (key === 'stat')  { DB.stats[idx].icon  = val; buildStatCards(); }
+    if (key === 'scene') { DB.scenes[idx].emoji = val; buildSceneItems(); }
+  }
+  closeIconPicker();
 }
 
 // ═══════════════════════════════════════════════
