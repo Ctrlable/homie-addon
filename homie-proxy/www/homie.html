@@ -1789,7 +1789,15 @@ function connectWS(conn, resolvedUrl) {
   // proxyUrl like ws://homeassistant.local:3001/proxy/<id>.
   // The proxy injects the auth token server-side — browser sends nothing.
   if (conn.proxyUrl) {
-    const wsUrl = conn.proxyUrl;
+    // Always match the page's protocol to avoid mixed-content blocks.
+    // HA ingress may not forward X-Forwarded-Proto so the server-side proxyUrl
+    // might say ws:// even when the page is served over HTTPS.
+    let wsUrl = conn.proxyUrl;
+    if (window.location.protocol === 'https:' && wsUrl.startsWith('ws:')) {
+      wsUrl = 'wss:' + wsUrl.slice(3);
+    } else if (window.location.protocol === 'http:' && wsUrl.startsWith('wss:')) {
+      wsUrl = 'ws:' + wsUrl.slice(4);
+    }
     log('info', `[${conn.id}] Connecting via proxy: ${wsUrl}`);
     setConnStatus('connecting', wsUrl, true);
     try { ws = new WebSocket(wsUrl); } catch(e) { setConnStatus('err', wsUrl, true); return; }
@@ -1860,9 +1868,27 @@ function handleMsg(msg, token) {
 function send(obj) { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj)); }
 
 function callService(domain, service, data) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    showToast('Not connected to HA — check connection status in settings');
+    return;
+  }
   const id = msgId++; pendingCalls[id] = ()=>{};
   send({id, type:'call_service', domain, service, service_data:data});
   haptic('medium');
+}
+
+function showToast(msg) {
+  let t = document.getElementById('haToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'haToast';
+    t.style.cssText = 'position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:rgba(30,20,10,.92);color:rgba(255,200,80,.9);font-family:"DM Mono",monospace;font-size:9px;letter-spacing:.15em;padding:.6rem 1.2rem;border-radius:6px;z-index:9999;pointer-events:none;transition:opacity .3s';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._hide);
+  t._hide = setTimeout(() => { t.style.opacity = '0'; }, 2500);
 }
 
 function setConnStatus(state, activeUrl, isLan) {

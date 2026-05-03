@@ -92,7 +92,10 @@ function buildSafeConns(req) {
   const host     = req.headers['x-forwarded-host'] || req.headers.host || `homeassistant.local:${PORT}`;
   const proto    = req.headers['x-forwarded-proto'] === 'https' ? 'wss' : 'ws';
   const basePath = (req.headers['x-ingress-path'] || '').replace(/\/$/, '');
-  return CONNECTIONS.map(c => ({
+  // Only expose connections that are fully configured (in CONN_MAP) — those with
+  // a valid id, token, and ha_url. Incomplete entries would cause WS to be
+  // accepted by the browser but immediately rejected by the proxy (silent fail).
+  return Object.values(CONN_MAP).map(c => ({
     id:       c.id,
     label:    c.label || c.id,
     proxyUrl: `${proto}://${host}${basePath}/proxy/${encodeURIComponent(c.id)}`,
