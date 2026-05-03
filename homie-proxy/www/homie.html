@@ -507,7 +507,7 @@ html, body {
   border:1px solid var(--border); border-radius:10px; cursor:pointer; transition:all .2s;
 }
 .popup-room-row:hover { background:rgba(255,255,255,.08); }
-.popup-room-row.open { background:var(--ac-1); border-color:var(--ac-4); border-radius:10px 10px 0 0; }
+.popup-room-row.open { background:var(--ac-1); border-color:var(--ac-4); border-radius:10px 10px 0 0; border-bottom-color:transparent; }
 .popup-room-row-left { display:flex; align-items:center; gap:8px; }
 .popup-room-name   { font-size:8px; letter-spacing:.25em; color:#fff; text-transform:uppercase; }
 .popup-room-badge  { font-size:8px; letter-spacing:.15em; color:var(--accent-hi); opacity:0; transition:opacity .2s; }
@@ -547,6 +547,7 @@ html, body {
 .mush-brightness-fill {
   position:absolute; left:0; top:0; bottom:0; border-radius:11px;
   background:linear-gradient(to right, var(--hi-25), var(--hi-5)); pointer-events:none;
+  transition:width .12s ease;
 }
 .mush-brightness-input { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; margin:0; }
 .mush-ct-presets { display:flex; align-items:center; gap:7px; }
@@ -1083,6 +1084,7 @@ html[data-role="viewer"] .admin-only { display:none !important; }
       <div class="top-date" id="dateDisplay">—</div>
     </div>
     <div class="top-center">
+      <i class="mdi" id="weatherIcon" style="font-size:20px;color:rgba(255,255,255,.75);line-height:1"></i>
       <div class="weather-temp" id="weatherTemp">--°</div>
       <div class="weather-desc" id="weatherDesc">Weather</div>
     </div>
@@ -1108,6 +1110,7 @@ html[data-role="viewer"] .admin-only { display:none !important; }
     </div>
     <!-- Now Playing — in-flow below hero stats -->
     <div class="now-playing" id="nowPlaying">
+      <img id="npArt" style="width:38px;height:38px;border-radius:6px;object-fit:cover;flex-shrink:0;display:none;opacity:.9" />
       <div class="np-info">
         <div class="np-track"  id="npTrack">Nothing playing</div>
         <div class="np-artist" id="npArtist"></div>
@@ -1219,6 +1222,7 @@ html[data-role="viewer"] .admin-only { display:none !important; }
           <div class="cfg-field"><label class="cfg-label">Dashboard Name</label><input class="cfg-input" id="cfgName" placeholder="Living Room" /></div>
           <div class="cfg-field"><label class="cfg-label">Background Image URL</label><div class="cfg-input-row"><input class="cfg-input" id="cfgBg" placeholder="https://… or leave blank" onchange="DB.bg=this.value;updateBgPreview()" /><button class="pick-btn" onclick="openMediaBrowser('cfgBg')" title="Browse HA media">🖼</button></div>
             <div id="bgPreview" style="margin-top:6px;width:100%;height:60px;border-radius:4px;background-size:cover;background-position:center;display:none;border:1px solid var(--ac-25)"></div></div>
+          <div class="cfg-field"><label class="cfg-label">Main Greeting (leave blank for time-based)</label><input class="cfg-input" id="cfgGreetMain" placeholder="Good Evening" /></div>
           <div class="cfg-field"><label class="cfg-label">Greeting Subtitle</label><input class="cfg-input" id="cfgGreetSub" placeholder="Welcome Home" /></div>
           <div class="cfg-field"><label class="cfg-label">Weather Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgWeather" placeholder="weather.home" onchange="DB.weather=this.value" /><button class="pick-btn" onclick="openEntityPicker('cfgWeather','weather')" title="Pick entity">🔍</button></div></div>
           <div class="cfg-row">
@@ -1638,7 +1642,7 @@ const MDI_ICON_GROUPS = [
 
 const DB_DEFAULTS = () => ({
   name:'New Dashboard', desc:'', bg:'', connId:'', theme:'', tempUnit:'°C', role:'admin',
-  greeting:'Welcome Home', weather:'', media:'', calendars:'',
+  greetingMain:'', greeting:'Welcome Home', weather:'', media:'', calendars:'',
   f1Temp:'', f1Hum:'', f1Label:'Ground Floor',
   f2En:false, f2Temp:'', f2Hum:'', f2Label:'Upper Floor',
   solarEn:false, solarProd:'', solarBatt:'',
@@ -2410,8 +2414,17 @@ function statClick(entity) {
   if (!entity) return;
   const d = entity.split('.')[0];
   const st = entityStates[entity];
-  if (['light','switch','input_boolean'].includes(d))
-    callService(d, st?.state==='on'?'turn_off':'turn_on', {entity_id:entity});
+  const s = st?.state;
+  if (['light','switch','input_boolean','fan'].includes(d))
+    callService(d, s==='on'?'turn_off':'turn_on', {entity_id:entity});
+  else if (d==='cover')
+    callService('cover', s==='open'?'close_cover':'open_cover', {entity_id:entity});
+  else if (d==='lock')
+    callService('lock', s==='locked'?'unlock':'lock', {entity_id:entity});
+  else if (d==='media_player')
+    callService('media_player', 'media_play_pause', {entity_id:entity});
+  else if (['script','scene','automation','input_button','button'].includes(d))
+    callService(d==='scene'?'scene':'homeassistant', d==='scene'?'turn_on':'turn_on', {entity_id:entity});
 }
 
 // ═══════════════════════════════════════════════
@@ -2553,6 +2566,7 @@ function buildClimatePopup() {
     (DB.climateEntities||[]).map(e=>{
       const st=entityStates[e.entity]||{}; const mode=st.state||'off'; const on=mode!=='off';
       const setTemp=+(st.attributes?.temperature??22); const curTemp=st.attributes?.current_temperature??'--';
+      const step=+(st.attributes?.target_temp_step??1);
       return `<div class="mush-ac-card ${on?'mode-'+mode:''}">
         <div class="mush-ac-top">
           <div class="mush-ac-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="${on?'#7cc8e0':'rgba(255,255,255,.3)'}" stroke-width="1.8"><path d="M12 3v18M3 12h18M5.64 5.64l12.72 12.72M18.36 5.64 5.64 18.36"/></svg></div>
@@ -2560,9 +2574,9 @@ function buildClimatePopup() {
           <button class="cfg-btn sm" onclick="callService('climate','${on?'turn_off':'turn_on'}',{entity_id:'${e.entity}'})">${on?'Off':'On'}</button>
         </div>
         <div class="mush-ac-controls">
-          <button class="ac-nudge-btn" onclick="callService('climate','set_temperature',{entity_id:'${e.entity}',temperature:${setTemp-.5}})">−</button>
+          <button class="ac-nudge-btn" onclick="callService('climate','set_temperature',{entity_id:'${e.entity}',temperature:${+(setTemp-step).toFixed(1)}})">−</button>
           <div class="ac-temp-display">${setTemp}°</div>
-          <button class="ac-nudge-btn" onclick="callService('climate','set_temperature',{entity_id:'${e.entity}',temperature:${setTemp+.5}})">+</button>
+          <button class="ac-nudge-btn" onclick="callService('climate','set_temperature',{entity_id:'${e.entity}',temperature:${+(setTemp+step).toFixed(1)}})">+</button>
         </div>
         <div class="ac-mode-row">
           ${['cool','heat','fan_only','dry'].map(m=>`<button class="ac-mode-btn ${mode===m?'active':''}" onclick="callService('climate','set_hvac_mode',{entity_id:'${e.entity}',hvac_mode:'${m}'})">${m}</button>`).join('')}
@@ -2579,11 +2593,12 @@ function buildCoversPopup() {
   if (!(DB.coverEntities||[]).length) { c.innerHTML='<div style="text-align:center;padding:1.5rem;color:rgba(255,255,255,.25);font-size:8px;letter-spacing:.2em">No covers configured</div>'; return; }
   c.innerHTML = DB.coverEntities.map(e=>{
     const st=entityStates[e.entity]||{}; const pos=st.attributes?.current_position??'--';
+    const canStop = (st.attributes?.supported_features??255) & 8;
     return `<div class="mush-cover-card">
       <div class="mush-cover-top"><div style="font-size:18px;margin-right:2px">🪟</div><div class="mush-cover-meta"><div class="mush-cover-name">${e.label}</div><div class="mush-cover-pct">${pos!=='--'?pos+'%':st.state||'--'}</div></div></div>
       <div class="mush-cover-btns">
         <button class="cover-btn" onclick="callService('cover','open_cover',{entity_id:'${e.entity}'})">▲ Open</button>
-        <button class="cover-btn" onclick="callService('cover','stop_cover',{entity_id:'${e.entity}'})">■ Stop</button>
+        ${canStop?`<button class="cover-btn" onclick="callService('cover','stop_cover',{entity_id:'${e.entity}'})">■ Stop</button>`:''}
         <button class="cover-btn" onclick="callService('cover','close_cover',{entity_id:'${e.entity}'})">▼ Close</button>
       </div></div>`;
   }).join('');
@@ -2640,11 +2655,21 @@ function buildCalendarPopup() {
 
 // WEATHER / SENSORS / NOTIFICATIONS / MEDIA
 // ═══════════════════════════════════════════════
+const WEATHER_ICONS = {
+  'sunny':'weather-sunny','clear-night':'weather-night','partlycloudy':'weather-partly-cloudy',
+  'cloudy':'weather-cloudy','fog':'weather-fog','hail':'weather-hail',
+  'lightning':'weather-lightning','lightning-rainy':'weather-lightning-rainy',
+  'pouring':'weather-pouring','rainy':'weather-rainy','snowy':'weather-snowy',
+  'snowy-rainy':'weather-snowy-rainy','windy':'weather-windy','windy-variant':'weather-windy-variant',
+  'exceptional':'alert-circle-outline',
+};
 function updateWeather() {
   const st = entityStates[DB.weather||''];
   if (!st) return;
   document.getElementById('weatherTemp').textContent = `${st.attributes?.temperature??'--'}${DB.tempUnit}`;
-  document.getElementById('weatherDesc').textContent = (st.attributes?.attribution||st.state||'').replace(/_/g,' ');
+  document.getElementById('weatherDesc').textContent = (st.state||'').replace(/-/g,' ').replace(/_/g,' ');
+  const icon = document.getElementById('weatherIcon');
+  if (icon) { const mdi = WEATHER_ICONS[st.state]||'weather-cloudy'; icon.className = `mdi mdi-${mdi}`; }
 }
 
 function updateSensors() {
@@ -2672,19 +2697,29 @@ function updateMedia() {
   const np = document.getElementById('nowPlaying');
   if (!DB.media) { np.classList.remove('configured','visible'); return; }
   np.classList.add('configured');
+  const conn = CONNS.find(c => c.id === DB?.connId) || CONNS[0];
   const st = entityStates[DB.media];
   const ppBtn = document.getElementById('npPlayPause');
+  const art = document.getElementById('npArt');
   if (!st || ['idle','off','unavailable'].includes(st.state)) {
     document.getElementById('npTrack').textContent  = 'Nothing playing';
     document.getElementById('npArtist').textContent = '';
     document.getElementById('npProgress').style.width = '0%';
     if (ppBtn) ppBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+    if (art) art.style.display = 'none';
     np.classList.remove('visible');
     return;
   }
   const a = st.attributes||{};
   document.getElementById('npTrack').textContent  = a.media_title  || st.state;
   document.getElementById('npArtist').textContent = a.media_artist || a.app_name || '';
+  if (art) {
+    const pic = a.entity_picture;
+    if (pic && conn) {
+      art.src = pic.startsWith('/') ? `ha-api/${encodeURIComponent(conn.id)}${pic}` : pic;
+      art.style.display = '';
+    } else { art.style.display = 'none'; }
+  }
   if (ppBtn) {
     const playing = st.state === 'playing';
     ppBtn.innerHTML = playing
@@ -2751,7 +2786,7 @@ function startClock() {
     const c=document.getElementById('clock'); if(c) c.textContent=n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
     const d=document.getElementById('dateDisplay'); if(d) d.textContent=`${DAYS[n.getDay()]} · ${n.getDate()} ${MONS[n.getMonth()]} ${n.getFullYear()}`;
     const h=n.getHours(); const g=document.getElementById('heroGreeting');
-    if (g) g.textContent = h<5?'Good Night':h<12?'Good Morning':h<17?'Good Afternoon':h<21?'Good Evening':'Good Night';
+    if (g) g.textContent = DB?.greetingMain || (h<5?'Good Night':h<12?'Good Morning':h<17?'Good Afternoon':h<21?'Good Evening':'Good Night');
   }
   tick(); setInterval(tick, 1000);
 }
@@ -2783,7 +2818,7 @@ function switchTab(t) {
 
 function populateCfgForm() {
   if (!DB) return;
-  sv('cfgName', DB.name); sv('cfgBg', DB.bg); sv('cfgGreetSub', DB.greeting);
+  sv('cfgName', DB.name); sv('cfgBg', DB.bg); sv('cfgGreetMain', DB.greetingMain); sv('cfgGreetSub', DB.greeting);
   updateBgPreview();
   sv('cfgWeather', DB.weather); sv('cfgTempUnit', DB.tempUnit); sv('cfgThemeSel', DB.theme||''); sv('cfgFontSel', DB.font||'');
   sv('cfgMedia', DB.media); sv('cfgCalendars', DB.calendars);
@@ -2807,6 +2842,7 @@ function saveCfg() {
   if (!DB) return;
   DB.name     = gv('cfgName')     || DB.name;
   DB.bg       = gv('cfgBg');
+  DB.greetingMain = gv('cfgGreetMain') || '';
   DB.greeting = gv('cfgGreetSub') || 'Welcome Home';
   DB.weather  = gv('cfgWeather');
   DB.tempUnit = gv('cfgTempUnit') || '°C';
@@ -3046,10 +3082,10 @@ function renderPickerList(filter) {
     `<div class="picker-domain">${grp}</div>` +
     groups[grp].map(e =>
       `<div class="picker-item" onclick='selectEntity(${JSON.stringify(e.entity_id)})'>
+         ${e.area ? `<div style="font-size:6px;letter-spacing:.22em;color:rgba(255,200,80,.65);text-transform:uppercase;margin-bottom:2px">📍 ${e.area}</div>` : ''}
          <div class="picker-entity-id">${e.friendly || e.entity_id}</div>
          <div class="picker-entity-state">
-           ${e.area ? `<span style="color:rgba(255,200,80,.7);margin-right:8px">📍${e.area}</span>` : ''}
-           <span style="opacity:.55">${e.entity_id}</span>
+           <span style="opacity:.45">${e.entity_id}</span>
            <span style="float:right">${e.state}</span>
          </div>
        </div>`
