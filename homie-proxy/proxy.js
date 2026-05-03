@@ -167,6 +167,70 @@ app.get('/ha-test/:connId', (req, res) => {
   }).catch(e => res.json({ ok: false, connId, error: e.message }));
 });
 
+// ── Server-side single-shot WS helper ────────────────────────────────────
+// Opens a WS to HA, authenticates, sends one command, resolves with result.
+// Used by /ha-states and /ha-mediabrowse so the browser never needs its own WS
+// just to fetch data — it just calls a plain HTTP endpoint instead.
+function haWsRequest(conn, msgType, msgPayload, timeoutMs = 12000) {
+  return new Promise((resolve, reject) => {
+    resolveHaUrl(conn).then(haUrl => {
+      const wsUrl = haUrl.replace(/^http/, 'ws') + '/api/websocket';
+      let haWs;
+      try { haWs = new WebSocket(wsUrl, { rejectUnauthorized: false }); }
+      catch(e) { return reject(e); }
+
+      let done = false;
+      const finish = fn => { if (!done) { done = true; clearTimeout(timer); try { haWs.close(); } catch(_){} fn(); } };
+      const timer = setTimeout(() => finish(() => reject(new Error('timeout'))), timeoutMs);
+
+      haWs.on('message', raw => {
+        let msg; try { msg = JSON.parse(raw); } catch { return; }
+        if (msg.type === 'auth_required') {
+          haWs.send(JSON.stringify({ type: 'auth', access_token: conn.token }));
+        } else if (msg.type === 'auth_ok') {
+          haWs.send(JSON.stringify({ id: 1, type: msgType, ...msgPayload }));
+        } else if (msg.type === 'auth_invalid') {
+          finish(() => reject(new Error('auth_invalid — check token in addon config')));
+        } else if (msg.type === 'result' && msg.id === 1) {
+          if (msg.success) finish(() => resolve(msg.result));
+          else finish(() => reject(new Error(msg.error?.message || 'HA returned error')));
+        }
+      });
+      haWs.on('error', e => finish(() => reject(e)));
+      haWs.on('close',  () => finish(() => reject(new Error('connection closed before result'))));
+    }).catch(reject);
+  });
+}
+
+// GET /ha-states/:connId — returns HA entity states as JSON array
+// Entity picker calls this directly; no browser-side WS needed.
+app.get('/ha-states/:connId', (req, res) => {
+  const conn = CONN_MAP[req.params.connId];
+  if (!conn) { res.status(404).json({ error: 'connection_not_found', registered: Object.keys(CONN_MAP) }); return; }
+  res.setHeader('Cache-Control', 'no-store');
+  haWsRequest(conn, 'get_states', {})
+    .then(result => res.json(Array.isArray(result) ? result : []))
+    .catch(e => {
+      log('warn', `[ha-states][${conn.id}] ${e.message}`);
+      res.status(502).json({ error: e.message });
+    });
+});
+
+// GET /ha-mediabrowse/:connId?id=<media_content_id>
+// Media browser calls this directly; no browser-side WS needed.
+app.get('/ha-mediabrowse/:connId', (req, res) => {
+  const conn = CONN_MAP[req.params.connId];
+  if (!conn) { res.status(404).json({ error: 'connection_not_found' }); return; }
+  const mediaContentId = req.query.id || 'media-source://media_source/local';
+  res.setHeader('Cache-Control', 'no-store');
+  haWsRequest(conn, 'media_source/browse_media', { media_content_id: mediaContentId })
+    .then(result => res.json(result))
+    .catch(e => {
+      log('warn', `[ha-mediabrowse][${conn.id}] ${e.message}`);
+      res.status(502).json({ error: e.message });
+    });
+});
+
 // Shared HA HTTP proxy helper — adds auth token, pipes response
 function proxyHaHttp(req, res, conn, haPath, cacheControl) {
   const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';

@@ -2495,31 +2495,22 @@ function openEntityPicker(inputId, domain) {
 
   document.getElementById('pickerList').innerHTML = loadingHtml;
 
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    const id = msgId++;
-    pendingCalls[id] = result => populatePicker(result);
-    send({ id, type: 'get_states' });
-    return;
-  }
-
   const conn = getPickerConn();
-  if (!conn) { showPickerError('No connection configured'); return; }
+  if (!conn) { showPickerError('No connection configured — set a connection in Settings'); return; }
   const cid = encodeURIComponent(conn.id);
 
-  Promise.allSettled([
-    fetch(`ha-api/${cid}/api/states`).then(r => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`)),
-    fetch(`ha-api/${cid}/api/config/entity_registry`).then(r => r.ok ? r.json() : []),
-    fetch(`ha-api/${cid}/api/config/area_registry`).then(r => r.ok ? r.json() : []),
-  ]).then(([statesR, entRegR, areaRegR]) => {
-    if (statesR.status === 'rejected') { showPickerError(String(statesR.reason)); return; }
-    const states = Array.isArray(statesR.value) ? statesR.value : [];
-    buildAreaMap(
-      entRegR.status === 'fulfilled' ? entRegR.value : [],
-      areaRegR.status === 'fulfilled' ? areaRegR.value : []
-    );
-    if (!states.length) { showPickerError('No entities returned from HA'); return; }
+  // Always fetch fresh from the server-side HA proxy.
+  // /ha-states uses a server-side WS to HA — no browser WS required.
+  Promise.all([
+    fetch(`ha-states/${cid}`)
+      .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(d.error || `HTTP ${r.status}`))),
+    fetch(`ha-api/${cid}/api/config/entity_registry`).then(r => r.ok ? r.json() : []).catch(() => []),
+    fetch(`ha-api/${cid}/api/config/area_registry`).then(r => r.ok ? r.json() : []).catch(() => []),
+  ]).then(([states, entReg, areaReg]) => {
+    buildAreaMap(entReg, areaReg);
+    if (!states.length) { showPickerError('No entities returned — check HA token in addon config'); return; }
     populatePicker(states);
-  }).catch(err => showPickerError(err.message));
+  }).catch(err => showPickerError(String(err)));
 }
 
 function closeEntityPicker() {
@@ -2585,16 +2576,6 @@ let mediaBrowserConnId   = null;
 let mediaBrowserStack    = [];
 let mediaBrowserItems    = [];
 
-let mediaWs      = null;
-let mediaWsReady = false;
-let mediaWsCalls = {};
-let mediaWsId    = 5000;
-
-function closeMediaWs() {
-  if (mediaWs) { try { mediaWs.close(); } catch(e){} mediaWs = null; }
-  mediaWsReady = false;
-  mediaWsCalls = {};
-}
 
 function openMediaBrowser(inputId) {
   mediaBrowserTargetId = inputId;
@@ -2609,81 +2590,24 @@ function openMediaBrowser(inputId) {
 function closeMediaBrowser() {
   document.getElementById('mediaBrowserOverlay').classList.remove('open');
   mediaBrowserTargetId = null;
-  closeMediaWs();
 }
 
 function mediaBrowse(contentId) {
   updateMediaBreadcrumb();
   const grid = document.getElementById('mediaGrid');
-
-  // Use main dashboard WS if already connected
-  if (wsConnected && ws?.readyState === WebSocket.OPEN) {
-    grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">Loading…</div>';
-    const id = msgId++;
-    pendingCalls[id] = result => renderMediaGrid(result);
-    send({ id, type: 'media_source/browse_media', media_content_id: contentId });
-    return;
-  }
-
-  // Fall back to a dedicated mediaWs (config screen — main ws not active)
   const conn = CONNS.find(c => c.id === mediaBrowserConnId);
   if (!conn) {
-    grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">No connection configured</div>';
+    grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,200,80,.7);font-size:9px;letter-spacing:.2em">No HA connection configured</div>';
     return;
   }
-
-  const doSend = () => {
-    grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">Loading…</div>';
-    const id = mediaWsId++;
-    mediaWsCalls[id] = result => renderMediaGrid(result);
-    if (mediaWs?.readyState === WebSocket.OPEN) mediaWs.send(JSON.stringify({ id, type: 'media_source/browse_media', media_content_id: contentId }));
-  };
-
-  if (mediaWsReady && mediaWs?.readyState === WebSocket.OPEN) { doSend(); return; }
-
-  // Establish fresh mediaWs
-  if (mediaWs) closeMediaWs();
-  grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">Connecting…</div>';
-
-  let wsUrl;
-  if (conn.proxyUrl) {
-    // Same window.location approach as connectWS — internal container host is not browser-reachable
-    const proto    = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const basePath = window.location.pathname.replace(/\/[^/]*$/, '');
-    wsUrl = `${proto}//${window.location.host}${basePath}/proxy/${encodeURIComponent(conn.id)}`;
-  } else {
-    wsUrl = (conn.lan || conn.url || conn.wan || '').replace(/^http/, 'ws') + '/api/websocket';
-  }
-  try { mediaWs = new WebSocket(wsUrl); } catch(e) {
-    grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">WebSocket failed</div>';
-    return;
-  }
-  mediaWs.onclose = () => { mediaWs = null; mediaWsReady = false; mediaWsCalls = {}; };
-  mediaWs.onerror = () => {
-    grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">Connection error</div>';
-  };
-  const handleMediaMsg = raw => {
-    let msg;
-    try { msg = JSON.parse(raw); } catch(e) { return; }
-    if (!msg) return;
-    if (msg.type === 'auth_required') {
-      if (conn.token) mediaWs.send(JSON.stringify({ type: 'auth', access_token: conn.token }));
-      else { mediaWsReady = true; doSend(); }
-    } else if (msg.type === 'auth_ok') {
-      mediaWsReady = true;
-      doSend();
-    } else if (msg.type === 'result') {
-      const cb = mediaWsCalls[msg.id];
-      if (cb) { cb(msg.success ? msg.result : null); delete mediaWsCalls[msg.id]; }
-    }
-  };
-  mediaWs.onmessage = ev => {
-    if (ev.data instanceof Blob) {
-      ev.data.text().then(handleMediaMsg);
-    } else {
-      handleMediaMsg(ev.data);
-    }
-  };
+  grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">Loading…</div>';
+  const url = `ha-mediabrowse/${encodeURIComponent(conn.id)}?id=${encodeURIComponent(contentId)}`;
+  fetch(url, { signal: AbortSignal.timeout(15000) })
+    .then(r => r.ok ? r.json() : r.json().then(d => Promise.reject(d.error || `HTTP ${r.status}`)))
+    .then(result => renderMediaGrid(result))
+    .catch(err => {
+      grid.innerHTML = `<div style="text-align:center;padding:2rem;color:rgba(255,120,60,.8);font-size:9px;letter-spacing:.15em;white-space:pre-wrap">${String(err)}</div>`;
+    });
 }
 
 function updateMediaBreadcrumb() {
