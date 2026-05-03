@@ -2359,7 +2359,7 @@ function buildClimatePopup() {
   document.getElementById('climateContent').innerHTML =
     (DB.climateEntities||[]).map(e=>{
       const st=entityStates[e.entity]||{}; const mode=st.state||'off'; const on=mode!=='off';
-      const setTemp=st.attributes?.temperature||22; const curTemp=st.attributes?.current_temperature||'--';
+      const setTemp=+(st.attributes?.temperature??22); const curTemp=st.attributes?.current_temperature??'--';
       return `<div class="mush-ac-card ${on?'mode-'+mode:''}">
         <div class="mush-ac-top">
           <div class="mush-ac-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="${on?'#7cc8e0':'rgba(255,255,255,.3)'}" stroke-width="1.8"><path d="M12 3v18M3 12h18M5.64 5.64l12.72 12.72M18.36 5.64 5.64 18.36"/></svg></div>
