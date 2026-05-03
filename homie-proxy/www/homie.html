@@ -2253,14 +2253,33 @@ let pickerTargetId    = null;
 let pickerAllEntities = [];
 
 function openEntityPicker(inputId) {
-  pickerTargetId    = inputId;
-  pickerAllEntities = Object.entries(entityStates).map(([id, s]) => ({
-    entity_id: id, state: s.state, domain: id.split('.')[0]
-  })).sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+  pickerTargetId = inputId;
   document.getElementById('pickerSearch').value = '';
   document.getElementById('entityPickerOverlay').classList.add('open');
-  renderPickerList('');
-  setTimeout(() => document.getElementById('pickerSearch').focus(), 50);
+
+  if (Object.keys(entityStates).length > 0) {
+    pickerAllEntities = Object.entries(entityStates).map(([id, s]) => ({
+      entity_id: id, state: s.state, domain: id.split('.')[0]
+    })).sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+    renderPickerList('');
+    setTimeout(() => document.getElementById('pickerSearch').focus(), 50);
+  } else if (ws && ws.readyState === WebSocket.OPEN) {
+    document.getElementById('pickerList').innerHTML =
+      '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4);font-size:9px;letter-spacing:.2em">Loading entities…</div>';
+    const id = msgId++;
+    pendingCalls[id] = result => {
+      result.forEach(s => { entityStates[s.entity_id] = s; });
+      pickerAllEntities = Object.entries(entityStates).map(([eid, s]) => ({
+        entity_id: eid, state: s.state, domain: eid.split('.')[0]
+      })).sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+      renderPickerList(document.getElementById('pickerSearch').value || '');
+      document.getElementById('pickerSearch').focus();
+    };
+    send({ id, type: 'get_states' });
+  } else {
+    pickerAllEntities = [];
+    renderPickerList('');
+  }
 }
 
 function closeEntityPicker() {

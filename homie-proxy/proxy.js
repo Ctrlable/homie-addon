@@ -149,6 +149,11 @@ app.get('*', (_req, res) => {
 // match /proxy. Route manually in the handler instead.
 const wss = new WebSocketServer({ server });
 
+// Log every WS upgrade attempt so we can tell if the browser is reaching us
+server.on('upgrade', (req) => {
+  log('info', `WS upgrade request: ${req.url}`);
+});
+
 // Route: ws://host/proxy/<connId>
 wss.on('connection', (browserWs, req) => {
   // Parse the connection ID from the URL path: /proxy/<id>
