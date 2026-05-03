@@ -1113,7 +1113,7 @@ html, body {
           <div class="cfg-field"><label class="cfg-label">Dashboard Name</label><input class="cfg-input" id="cfgName" placeholder="Living Room" /></div>
           <div class="cfg-field"><label class="cfg-label">Background Image URL</label><div class="cfg-input-row"><input class="cfg-input" id="cfgBg" placeholder="https://… or leave blank" /><button class="pick-btn" onclick="openMediaBrowser('cfgBg')" title="Browse HA media">🖼</button></div></div>
           <div class="cfg-field"><label class="cfg-label">Greeting Subtitle</label><input class="cfg-input" id="cfgGreetSub" placeholder="Welcome Home" /></div>
-          <div class="cfg-field"><label class="cfg-label">Weather Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgWeather" placeholder="weather.home" /><button class="pick-btn" onclick="openEntityPicker('cfgWeather')" title="Pick entity">🔍</button></div></div>
+          <div class="cfg-field"><label class="cfg-label">Weather Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgWeather" placeholder="weather.home" onchange="DB.weather=this.value" /><button class="pick-btn" onclick="openEntityPicker('cfgWeather','weather')" title="Pick entity">🔍</button></div></div>
           <div class="cfg-row">
             <div class="cfg-field"><label class="cfg-label">Temp Unit</label>
               <select class="cfg-input" id="cfgTempUnit"><option value="°C">°C</option><option value="°F">°F</option></select></div>
@@ -1141,8 +1141,8 @@ html, body {
           <div class="cfg-card">
             <div class="cfg-card-header"><div class="cfg-card-title">Ground Floor</div></div>
             <div class="cfg-row">
-              <div class="cfg-field"><label class="cfg-label">Temp Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgF1Temp" placeholder="sensor.ground_temp" /><button class="pick-btn" onclick="openEntityPicker('cfgF1Temp')" title="Pick entity">🔍</button></div></div>
-              <div class="cfg-field"><label class="cfg-label">Humidity Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgF1Hum" placeholder="sensor.ground_hum" /><button class="pick-btn" onclick="openEntityPicker('cfgF1Hum')" title="Pick entity">🔍</button></div></div>
+              <div class="cfg-field"><label class="cfg-label">Temp Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgF1Temp" placeholder="sensor.ground_temp" onchange="DB.f1Temp=this.value" /><button class="pick-btn" onclick="openEntityPicker('cfgF1Temp','sensor')" title="Pick entity">🔍</button></div></div>
+              <div class="cfg-field"><label class="cfg-label">Humidity Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgF1Hum" placeholder="sensor.ground_hum" onchange="DB.f1Hum=this.value" /><button class="pick-btn" onclick="openEntityPicker('cfgF1Hum','sensor')" title="Pick entity">🔍</button></div></div>
             </div>
             <div class="cfg-field"><label class="cfg-label">Label</label><input class="cfg-input" id="cfgF1Label" placeholder="Ground Floor" /></div>
           </div>
@@ -1150,8 +1150,8 @@ html, body {
             <div class="cfg-card-header"><div class="cfg-card-title">Upper Floor</div><div class="mini-toggle" id="tF2" onclick="mtoggle('tF2','cfgF2En')"></div></div>
             <input type="hidden" id="cfgF2En" value="false" />
             <div class="cfg-row">
-              <div class="cfg-field"><label class="cfg-label">Temp Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgF2Temp" placeholder="sensor.upper_temp" /><button class="pick-btn" onclick="openEntityPicker('cfgF2Temp')" title="Pick entity">🔍</button></div></div>
-              <div class="cfg-field"><label class="cfg-label">Humidity Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgF2Hum" placeholder="sensor.upper_hum" /><button class="pick-btn" onclick="openEntityPicker('cfgF2Hum')" title="Pick entity">🔍</button></div></div>
+              <div class="cfg-field"><label class="cfg-label">Temp Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgF2Temp" placeholder="sensor.upper_temp" onchange="DB.f2Temp=this.value" /><button class="pick-btn" onclick="openEntityPicker('cfgF2Temp','sensor')" title="Pick entity">🔍</button></div></div>
+              <div class="cfg-field"><label class="cfg-label">Humidity Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgF2Hum" placeholder="sensor.upper_hum" onchange="DB.f2Hum=this.value" /><button class="pick-btn" onclick="openEntityPicker('cfgF2Hum','sensor')" title="Pick entity">🔍</button></div></div>
             </div>
             <div class="cfg-field"><label class="cfg-label">Label</label><input class="cfg-input" id="cfgF2Label" placeholder="Upper Floor" /></div>
           </div>
@@ -1159,8 +1159,8 @@ html, body {
             <div class="cfg-card-header"><div class="cfg-card-title">Solar / Battery</div><div class="mini-toggle" id="tSolar" onclick="mtoggle('tSolar','cfgSolarEn')"></div></div>
             <input type="hidden" id="cfgSolarEn" value="false" />
             <div class="cfg-row">
-              <div class="cfg-field"><label class="cfg-label">Production (kW)</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgSolarProd" placeholder="sensor.solar_power" /><button class="pick-btn" onclick="openEntityPicker('cfgSolarProd')" title="Pick entity">🔍</button></div></div>
-              <div class="cfg-field"><label class="cfg-label">Battery SoC (%)</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgSolarBatt" placeholder="sensor.battery_soc" /><button class="pick-btn" onclick="openEntityPicker('cfgSolarBatt')" title="Pick entity">🔍</button></div></div>
+              <div class="cfg-field"><label class="cfg-label">Production (kW)</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgSolarProd" placeholder="sensor.solar_power" onchange="DB.solarProd=this.value" /><button class="pick-btn" onclick="openEntityPicker('cfgSolarProd','sensor')" title="Pick entity">🔍</button></div></div>
+              <div class="cfg-field"><label class="cfg-label">Battery SoC (%)</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgSolarBatt" placeholder="sensor.battery_soc" onchange="DB.solarBatt=this.value" /><button class="pick-btn" onclick="openEntityPicker('cfgSolarBatt','sensor')" title="Pick entity">🔍</button></div></div>
             </div>
           </div>
         </div>
@@ -1197,7 +1197,7 @@ html, body {
 
         <!-- MEDIA -->
         <div class="cfg-tab-body" id="tab-media">
-          <div class="cfg-field"><label class="cfg-label">Media Player Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgMedia" placeholder="media_player.living_room" /><button class="pick-btn" onclick="openEntityPicker('cfgMedia')" title="Pick entity">🔍</button></div></div>
+          <div class="cfg-field"><label class="cfg-label">Media Player Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgMedia" placeholder="media_player.living_room" onchange="DB.media=this.value" /><button class="pick-btn" onclick="openEntityPicker('cfgMedia','media_player')" title="Pick entity">🔍</button></div></div>
           <div class="cfg-field"><label class="cfg-label">Calendar Entities (comma-separated)</label><input class="cfg-input cfg-mono" id="cfgCalendars" placeholder="calendar.home, calendar.work" /></div>
         </div>
 
@@ -1290,7 +1290,7 @@ html, body {
 <div class="picker-overlay" id="entityPickerOverlay" onclick="if(event.target===this)closeEntityPicker()">
   <div class="picker-modal">
     <div class="picker-header">
-      <span class="picker-title">Pick Entity</span>
+      <span class="picker-title" id="pickerTitle">Pick Entity</span>
       <input class="picker-search" id="pickerSearch" placeholder="Search entity or domain…" oninput="renderPickerList(this.value)" />
       <button class="cfg-close" onclick="closeEntityPicker()">✕</button>
     </div>
@@ -2237,7 +2237,7 @@ function buildLightRooms() {
       <div class="cfg-field"><label class="cfg-label">Room Name</label><input class="cfg-input" value="${r.name||''}" placeholder="Living Room" onchange="DB.lightRooms[${ri}].name=this.value"/></div>
       ${(r.entities||[]).map((e,ei)=>`<div style="display:flex;gap:7px;margin-bottom:6px">
         <input id="li-ent-${ri}-${ei}" class="cfg-input cfg-mono" style="flex:2" value="${e.entity||''}" placeholder="light.entity" onchange="DB.lightRooms[${ri}].entities[${ei}].entity=this.value"/>
-        <button class="pick-btn" onclick="openEntityPicker('li-ent-${ri}-${ei}')" title="Pick entity">🔍</button>
+        <button class="pick-btn" onclick="openEntityPicker('li-ent-${ri}-${ei}','light')" title="Pick entity">🔍</button>
         <input class="cfg-input" style="flex:1" value="${e.label||''}" placeholder="Label" onchange="DB.lightRooms[${ri}].entities[${ei}].label=this.value"/>
         <button class="cfg-btn danger sm" onclick="DB.lightRooms[${ri}].entities.splice(${ei},1);buildLightRooms()">✕</button>
       </div>`).join('')}
@@ -2256,13 +2256,14 @@ function buildSceneItems() {
         <div class="cfg-field"><label class="cfg-label">Label</label><input class="cfg-input" value="${s.label||''}" placeholder="Movie" onchange="DB.scenes[${i}].label=this.value"/></div>
         <div class="cfg-field"><label class="cfg-label">Color</label><input class="cfg-input" type="color" value="${s.color||'#222222'}" onchange="DB.scenes[${i}].color=this.value" style="height:40px;padding:2px 6px;cursor:pointer"/></div>
       </div>
-      <div class="cfg-field"><label class="cfg-label">Entity ID</label><div class="cfg-input-row"><input id="sc-ent-${i}" class="cfg-input cfg-mono" value="${s.entity||''}" placeholder="scene.movie" onchange="DB.scenes[${i}].entity=this.value"/><button class="pick-btn" onclick="openEntityPicker('sc-ent-${i}')" title="Pick entity">🔍</button></div></div>
+      <div class="cfg-field"><label class="cfg-label">Entity ID</label><div class="cfg-input-row"><input id="sc-ent-${i}" class="cfg-input cfg-mono" value="${s.entity||''}" placeholder="scene.movie" onchange="DB.scenes[${i}].entity=this.value"/><button class="pick-btn" onclick="openEntityPicker('sc-ent-${i}','scene')" title="Pick entity">🔍</button></div></div>
     </div>`).join('');
 }
 function addScene() { DB.scenes=DB.scenes||[]; DB.scenes.push({label:'Scene',entity:'',emoji:'✨',color:'#1a1a2e'}); buildSceneItems(); }
 
 // ── Generic simple entity list ──
 function buildSimpleItems(key, containerId, placeholder, defaultLabel) {
+  const domain = placeholder.split('.')[0] || '';
   document.getElementById(containerId).innerHTML = (DB[key]||[]).map((e,i)=>`
     <div class="cfg-card" style="margin-bottom:7px">
       <div class="cfg-card-header" style="margin-bottom:.5rem">
@@ -2270,7 +2271,7 @@ function buildSimpleItems(key, containerId, placeholder, defaultLabel) {
         <button class="cfg-btn danger sm" onclick="DB['${key}'].splice(${i},1);buildSimpleItems('${key}','${containerId}','${placeholder}','${defaultLabel}')">Remove</button>
       </div>
       <div class="cfg-row">
-        <div class="cfg-field"><label class="cfg-label">Entity ID</label><div class="cfg-input-row"><input id="smpl-ent-${key}-${i}" class="cfg-input cfg-mono" value="${e.entity||''}" placeholder="${placeholder}" onchange="DB['${key}'][${i}].entity=this.value"/><button class="pick-btn" onclick="openEntityPicker('smpl-ent-${key}-${i}')" title="Pick entity">🔍</button></div></div>
+        <div class="cfg-field"><label class="cfg-label">Entity ID</label><div class="cfg-input-row"><input id="smpl-ent-${key}-${i}" class="cfg-input cfg-mono" value="${e.entity||''}" placeholder="${placeholder}" onchange="DB['${key}'][${i}].entity=this.value"/><button class="pick-btn" onclick="openEntityPicker('smpl-ent-${key}-${i}','${domain}')" title="Pick entity">🔍</button></div></div>
         <div class="cfg-field"><label class="cfg-label">Label</label><input class="cfg-input" value="${e.label||''}" placeholder="${defaultLabel}" onchange="DB['${key}'][${i}].label=this.value"/></div>
       </div>
     </div>`).join('');
@@ -2294,8 +2295,9 @@ function buildChipCfg() {
 // ═══════════════════════════════════════════════
 let pickerTargetId    = null;
 let pickerAllEntities = [];
+let pickerDomain      = null;   // domain filter for current session
+let entityAreaMap     = {};     // entity_id → area name (cached across opens)
 
-// Find the best connection for picker when no dashboard WS is open
 function getPickerConn() {
   const selVal = document.getElementById('cfgConnSel')?.value ||
                  document.getElementById('edConnSel')?.value ||
@@ -2303,55 +2305,79 @@ function getPickerConn() {
   return CONNS.find(c => c.id === selVal) || CONNS[0] || null;
 }
 
+function buildAreaMap(entReg, areaReg) {
+  const areaNames = {};
+  if (Array.isArray(areaReg)) areaReg.forEach(a => { areaNames[a.area_id] = a.name; });
+  entityAreaMap = {};
+  if (Array.isArray(entReg)) entReg.forEach(e => {
+    if (e.area_id) entityAreaMap[e.entity_id] = areaNames[e.area_id] || e.area_id.replace(/_/g,' ');
+  });
+}
+
 function populatePicker(states) {
   states.forEach(s => { entityStates[s.entity_id] = s; });
   pickerAllEntities = Object.entries(entityStates).map(([eid, s]) => ({
-    entity_id: eid, state: s.state, domain: eid.split('.')[0]
-  })).sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+    entity_id: eid, state: s.state, domain: eid.split('.')[0],
+    friendly: s.attributes?.friendly_name || '',
+    area: entityAreaMap[eid] || ''
+  })).sort((a, b) => {
+    const aArea = a.area || '￿', bArea = b.area || '￿';
+    return aArea !== bArea ? aArea.localeCompare(bArea) : a.entity_id.localeCompare(b.entity_id);
+  });
   renderPickerList(document.getElementById('pickerSearch')?.value || '');
   setTimeout(() => document.getElementById('pickerSearch')?.focus(), 50);
 }
 
-function openEntityPicker(inputId) {
+function openEntityPicker(inputId, domain) {
   pickerTargetId = inputId;
+  pickerDomain   = domain || null;
   document.getElementById('pickerSearch').value = '';
   document.getElementById('entityPickerOverlay').classList.add('open');
+  const titleEl = document.getElementById('pickerTitle');
+  if (titleEl) titleEl.textContent = domain ? `Pick ${domain.replace('_',' ')} entity` : 'Pick Entity';
+
+  const loadingHtml = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4);font-size:9px;letter-spacing:.2em">Loading entities…</div>';
 
   if (Object.keys(entityStates).length > 0) {
-    // Already have states from running dashboard
     pickerAllEntities = Object.entries(entityStates).map(([id, s]) => ({
-      entity_id: id, state: s.state, domain: id.split('.')[0]
-    })).sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+      entity_id: id, state: s.state, domain: id.split('.')[0],
+      friendly: s.attributes?.friendly_name || '', area: entityAreaMap[id] || ''
+    })).sort((a, b) => {
+      const aA = a.area||'￿', bA = b.area||'￿';
+      return aA !== bA ? aA.localeCompare(bA) : a.entity_id.localeCompare(b.entity_id);
+    });
     renderPickerList('');
     setTimeout(() => document.getElementById('pickerSearch').focus(), 50);
     return;
   }
 
-  const loadingHtml = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4);font-size:9px;letter-spacing:.2em">Loading entities…</div>';
   document.getElementById('pickerList').innerHTML = loadingHtml;
 
   if (ws && ws.readyState === WebSocket.OPEN) {
-    // Dashboard WS is open — fetch via it
     const id = msgId++;
     pendingCalls[id] = result => populatePicker(result);
     send({ id, type: 'get_states' });
     return;
   }
 
-  // No WS open — fetch via the proxy REST endpoint (no WebSocket needed)
   const conn = getPickerConn();
   if (!conn) { showPickerError('No connection configured'); return; }
+  const cid = encodeURIComponent(conn.id);
 
-  fetch(`ha-api/${encodeURIComponent(conn.id)}/api/states`)
-    .then(r => {
-      if (!r.ok) return r.json().then(j => { throw new Error(j.error || r.status); }).catch(() => { throw new Error(`HTTP ${r.status}`); });
-      return r.json();
-    })
-    .then(states => {
-      if (!Array.isArray(states)) throw new Error('unexpected response');
-      populatePicker(states);
-    })
-    .catch(err => showPickerError(err.message));
+  Promise.allSettled([
+    fetch(`ha-api/${cid}/api/states`).then(r => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`)),
+    fetch(`ha-api/${cid}/api/config/entity_registry`).then(r => r.ok ? r.json() : []),
+    fetch(`ha-api/${cid}/api/config/area_registry`).then(r => r.ok ? r.json() : []),
+  ]).then(([statesR, entRegR, areaRegR]) => {
+    if (statesR.status === 'rejected') { showPickerError(String(statesR.reason)); return; }
+    const states = Array.isArray(statesR.value) ? statesR.value : [];
+    buildAreaMap(
+      entRegR.status === 'fulfilled' ? entRegR.value : [],
+      areaRegR.status === 'fulfilled' ? areaRegR.value : []
+    );
+    if (!states.length) { showPickerError('No entities returned from HA'); return; }
+    populatePicker(states);
+  }).catch(err => showPickerError(err.message));
 }
 
 function closeEntityPicker() {
@@ -2362,24 +2388,38 @@ function closeEntityPicker() {
 function renderPickerList(filter) {
   const list = document.getElementById('pickerList');
   const q    = filter.toLowerCase().trim();
-  const src  = q
-    ? pickerAllEntities.filter(e => e.entity_id.toLowerCase().includes(q) || e.state.toLowerCase().includes(q))
-    : pickerAllEntities;
+  let src = pickerDomain ? pickerAllEntities.filter(e => e.domain === pickerDomain) : pickerAllEntities;
+  if (q) src = src.filter(e =>
+    e.entity_id.toLowerCase().includes(q) ||
+    e.friendly.toLowerCase().includes(q) ||
+    e.area.toLowerCase().includes(q) ||
+    e.state.toLowerCase().includes(q)
+  );
 
   if (!src.length) {
-    list.innerHTML = `<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">${pickerAllEntities.length ? 'No matches' : 'No entities — connect to HA first'}</div>`;
+    const hint = pickerAllEntities.length
+      ? (pickerDomain ? `No ${pickerDomain} entities match` : 'No matches')
+      : 'No entities — connect to HA first';
+    list.innerHTML = `<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">${hint}</div>`;
     return;
   }
 
+  // Group by area (or domain when no area info available)
+  const useAreas = src.some(e => e.area);
   const groups = {};
-  src.forEach(e => { (groups[e.domain] = groups[e.domain] || []).push(e); });
+  src.forEach(e => {
+    const key = useAreas ? (e.area || '— no area —') : e.domain;
+    (groups[key] = groups[key] || []).push(e);
+  });
 
-  list.innerHTML = Object.keys(groups).sort().map(domain =>
-    `<div class="picker-domain">${domain}</div>` +
-    groups[domain].map(e =>
+  list.innerHTML = Object.keys(groups).sort().map(grp =>
+    `<div class="picker-domain">${grp}</div>` +
+    groups[grp].map(e =>
       `<div class="picker-item" onclick="selectEntity(${JSON.stringify(e.entity_id)})">
-         <div class="picker-entity-id">${e.entity_id}</div>
-         <div class="picker-entity-state">${e.state}</div>
+         <div class="picker-entity-id">${e.friendly || e.entity_id}</div>
+         <div class="picker-entity-state" style="display:flex;justify-content:space-between">
+           <span>${e.entity_id}</span><span>${e.state}</span>
+         </div>
        </div>`
     ).join('')
   ).join('');
@@ -2387,7 +2427,13 @@ function renderPickerList(filter) {
 
 function selectEntity(entityId) {
   const el = document.getElementById(pickerTargetId);
-  if (el) { el.value = entityId; el.dispatchEvent(new Event('change')); }
+  if (el) {
+    el.value = entityId;
+    el.dispatchEvent(new Event('change'));
+    el.style.transition = 'background .15s';
+    el.style.background = 'rgba(92,184,122,.25)';
+    setTimeout(() => { el.style.background = ''; }, 600);
+  }
   closeEntityPicker();
 }
 
