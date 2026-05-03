@@ -171,10 +171,11 @@ function proxyHaHttp(req, res, conn, haPath, cacheControl) {
 }
 
 // GET /ha-media/:connId/* — proxy HA media files (browser never sees token)
+// req.params[0] is the wildcard capture — already decoded, no path-replace needed
 app.get('/ha-media/:connId/*', (req, res) => {
   const conn = CONN_MAP[req.params.connId];
   if (!conn) { res.status(404).end(); return; }
-  const haPath = req.path.replace(`/ha-media/${req.params.connId}`, '');
+  const haPath = '/' + req.params[0];
   proxyHaHttp(req, res, conn, haPath, 'max-age=60');
 });
 
@@ -187,7 +188,7 @@ app.get('/ha-api/:connId/*', (req, res) => {
     res.status(404).json({ error: 'connection_not_found', connId, registered: Object.keys(CONN_MAP) });
     return;
   }
-  const haPath = req.path.replace(`/ha-api/${connId}`, '');
+  const haPath = '/' + req.params[0];
   log('info', `[ha-api][${connId}] → ${haPath}`);
   proxyHaHttp(req, res, conn, haPath, 'no-store');
 });
