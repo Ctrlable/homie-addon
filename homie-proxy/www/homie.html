@@ -1043,7 +1043,7 @@ html, body {
     </div>
     <div class="top-right">
       <button class="topbar-btn manager-btn" onclick="goManager()" title="Back to Manager">⊞</button>
-      <button class="topbar-btn" onclick="openPopup('calPopup')">Calendar</button>
+      <button class="topbar-btn" onclick="buildCalendarPopup()">Calendar</button>
       <button class="topbar-btn" onclick="openPopup('themePopup')">Theme</button>
       <button class="topbar-btn ghost" onclick="openCfg()" title="Configure">⚙</button>
     </div>
@@ -1272,7 +1272,7 @@ html, body {
         <!-- MEDIA -->
         <div class="cfg-tab-body" id="tab-media">
           <div class="cfg-field"><label class="cfg-label">Media Player Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgMedia" placeholder="media_player.living_room" onchange="DB.media=this.value" /><button class="pick-btn" onclick="openEntityPicker('cfgMedia','media_player')" title="Pick entity">🔍</button></div></div>
-          <div class="cfg-field"><label class="cfg-label">Calendar Entities (comma-separated)</label><input class="cfg-input cfg-mono" id="cfgCalendars" placeholder="calendar.home, calendar.work" /></div>
+          <div class="cfg-field"><label class="cfg-label">Calendar Entities</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgCalendars" placeholder="calendar.home, calendar.work" data-append="true" onchange="DB.calendars=this.value" /><button class="pick-btn" onclick="openEntityPicker('cfgCalendars','calendar')" title="Pick calendar">🔍</button></div></div>
         </div>
 
         <!-- ALERTS -->
@@ -2448,6 +2448,40 @@ function buildSwitchesPopup() {
 }
 
 // ═══════════════════════════════════════════════
+// CALENDAR
+// ═══════════════════════════════════════════════
+function buildCalendarPopup() {
+  const conn = CONNS.find(c => c.id === DB?.connId) || CONNS[0];
+  const calendars = (DB.calendars||'').split(',').map(s=>s.trim()).filter(Boolean);
+  const content = document.getElementById('calContent');
+  openPopup('calPopup');
+  if (!conn || !calendars.length) {
+    content.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.25);font-size:9px;letter-spacing:.2em">No calendars configured</div>';
+    return;
+  }
+  content.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.35);font-size:8px;letter-spacing:.2em">Loading…</div>';
+  const now = new Date(); const end = new Date(now); end.setDate(end.getDate()+14);
+  Promise.all(calendars.map(cal =>
+    fetch(`ha-api/${encodeURIComponent(conn.id)}/api/calendars/${encodeURIComponent(cal)}?start=${encodeURIComponent(now.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { signal:AbortSignal.timeout(10000) })
+      .then(r=>r.ok?r.json():[]).catch(()=>[])
+  )).then(results => {
+    const MONTHS=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    const events = results.flat().sort((a,b)=>{
+      const as=a.start.dateTime||a.start.date, bs=b.start.dateTime||b.start.date;
+      return as<bs?-1:as>bs?1:0;
+    });
+    if (!events.length) { content.innerHTML='<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.25);font-size:9px;letter-spacing:.2em">No upcoming events</div>'; return; }
+    content.innerHTML = events.map(ev=>{
+      const allDay=!!ev.start.date;
+      const dt=new Date(ev.start.dateTime||(ev.start.date+'T00:00:00'));
+      const day=dt.getDate(), mon=MONTHS[dt.getMonth()];
+      let timeStr='All day';
+      if (!allDay) { const h=dt.getHours(),m=dt.getMinutes(),ap=h>=12?'PM':'AM'; timeStr=`${h%12||12}:${String(m).padStart(2,'0')} ${ap}`; }
+      return `<div class="cal-item"><div class="cal-date-block"><div class="cal-day">${day}</div><div class="cal-mon">${mon}</div></div><div><div class="cal-title">${ev.summary||'(No title)'}</div><div class="cal-time">${timeStr}</div></div></div>`;
+    }).join('');
+  });
+}
+
 // WEATHER / SENSORS / NOTIFICATIONS / MEDIA
 // ═══════════════════════════════════════════════
 function updateWeather() {
@@ -2870,7 +2904,13 @@ function renderPickerList(filter) {
 function selectEntity(entityId) {
   const el = document.getElementById(pickerTargetId);
   if (el) {
-    el.value = entityId;
+    if (el.dataset.append === 'true') {
+      const existing = el.value.split(',').map(s=>s.trim()).filter(Boolean);
+      if (!existing.includes(entityId)) existing.push(entityId);
+      el.value = existing.join(', ');
+    } else {
+      el.value = entityId;
+    }
     el.dispatchEvent(new Event('change'));
     el.style.transition = 'background .15s';
     el.style.background = 'rgba(92,184,122,.25)';
