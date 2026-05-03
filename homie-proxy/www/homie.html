@@ -1369,21 +1369,34 @@ let CONNS        = [];    // from config.js
 // ═══════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', () => {
   function boot() {
+    // Seed CONNS from client-config.js if it already loaded
     CONNS = window.HOMIE_CONNECTIONS || [];
-    loadAllDashboards().then(() => {
+
+    // Fetch connections from proxy API (more reliable than <script> loading)
+    // and load dashboards in parallel, then build the UI.
+    const finishBoot = () => {
       buildConnRow();
       buildDbGrid();
       buildThemeGrid();
       populateConnSelects();
       startClock();
-      // Open a specific dashboard if ?d=id is in the URL
       const sp = new URLSearchParams(window.location.search);
       const autoD = sp.get('d');
       if (autoD) {
         const db = dashboards.find(d => d.id === autoD);
         if (db) launchDashboard(db.id);
       }
-    });
+    };
+
+    Promise.all([
+      fetch('api/connections', { signal: AbortSignal.timeout(4000) })
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null),
+      loadAllDashboards(),
+    ]).then(([serverConns]) => {
+      if (Array.isArray(serverConns) && serverConns.length > 0) CONNS = serverConns;
+      finishBoot();
+    }).catch(() => finishBoot()); // always build UI even if fetches fail
   }
 
   // client-config.js may still be loading — defer boot until it signals ready
@@ -2443,15 +2456,7 @@ function renderPickerList(filter) {
     return;
   }
 
-  // Group by area (or domain when no area info available)
-  const useAreas = src.some(e => e.area);
-  const groups = {};
-  src.forEach(e => {
-    const key = useAreas ? (e.area || '— no area —') : e.domain;
-    (groups[key] = groups[key] || []).push(e);
-  });
-
-  // Always group by domain (reliable); area shown inline per entity
+  // Group by domain; area shown inline per entity
   const groups = {};
   src.forEach(e => { (groups[e.domain] = groups[e.domain] || []).push(e); });
 

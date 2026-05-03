@@ -88,6 +88,23 @@ const server = http.createServer(app);
 // Serve static dashboard files from /app/www
 app.use(express.static(path.join(__dirname, 'www')));
 
+function buildSafeConns(req) {
+  const host     = req.headers['x-forwarded-host'] || req.headers.host || `homeassistant.local:${PORT}`;
+  const proto    = req.headers['x-forwarded-proto'] === 'https' ? 'wss' : 'ws';
+  const basePath = (req.headers['x-ingress-path'] || '').replace(/\/$/, '');
+  return CONNECTIONS.map(c => ({
+    id:       c.id,
+    label:    c.label || c.id,
+    proxyUrl: `${proto}://${host}${basePath}/proxy/${encodeURIComponent(c.id)}`,
+  }));
+}
+
+// GET /api/connections — same data as client-config.js but as JSON (more reliable)
+app.get('/api/connections', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(buildSafeConns(req));
+});
+
 /**
  * GET /client-config.js
  * Generates a credential-free config.js for the browser.
@@ -95,18 +112,7 @@ app.use(express.static(path.join(__dirname, 'www')));
  * Token is NEVER included.
  */
 app.get('/client-config.js', (req, res) => {
-  // Determine the host the browser used to reach us
-  const host     = req.headers['x-forwarded-host'] || req.headers.host || `homeassistant.local:${PORT}`;
-  const proto    = req.headers['x-forwarded-proto'] === 'https' ? 'wss' : 'ws';
-  // HA ingress sets X-Ingress-Path (e.g. /api/hassio_ingress/TOKEN).
-  // Include it so WebSocket URLs resolve correctly through the ingress proxy.
-  const basePath = (req.headers['x-ingress-path'] || '').replace(/\/$/, '');
-
-  const safeConns = CONNECTIONS.map(c => ({
-    id:       c.id,
-    label:    c.label || c.id,
-    proxyUrl: `${proto}://${host}${basePath}/proxy/${encodeURIComponent(c.id)}`,
-  }));
+  const safeConns = buildSafeConns(req);
 
   res.setHeader('Content-Type', 'application/javascript');
   res.setHeader('Cache-Control', 'no-store');  // never cache — contains ws URLs
