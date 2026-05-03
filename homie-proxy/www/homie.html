@@ -2119,7 +2119,7 @@ function callService(domain, service, data) {
     signal: AbortSignal.timeout(12000),
   }).then(r => {
     if (!r.ok) r.json().catch(() => ({})).then(d => showToast(`${domain}.${service} failed: ${d.error || r.status}`));
-    else setTimeout(refreshEntityStates, 500);
+    else setTimeout(refreshEntityStates, 300);
   }).catch(e => showToast(`Service call failed: ${e.message}`));
 }
 
@@ -2178,6 +2178,30 @@ function updateAll() {
   updateMedia();
   updateChipCounts();
   updateSensors();
+  updateOpenPopups();
+}
+
+function updateOpenPopups() {
+  // Lights — update room badges and rebuild any open accordion panel
+  if (document.getElementById('lightsPopup')?.classList.contains('open')) {
+    (DB.lightRooms||[]).forEach((room, ri) => {
+      const on = (room.entities||[]).filter(e => entityStates[e.entity]?.state === 'on').length;
+      const badge = document.getElementById(`rb-${ri}`);
+      if (badge) { badge.className = `popup-room-badge ${on ? 'visible' : ''}`; badge.textContent = on ? on + ' on' : ''; }
+      const panel = document.getElementById(`rp-${ri}`);
+      if (panel?.classList.contains('open')) {
+        panel.innerHTML = (room.entities||[]).map(e => lightCard(e)).join('');
+        panel.querySelectorAll('.mush-brightness-input').forEach(inp => {
+          inp.addEventListener('input',  function() { this.parentElement.querySelector('.mush-brightness-fill').style.width = this.value + '%'; });
+          inp.addEventListener('change', function() { callService('light','turn_on',{entity_id:this.dataset.entity,brightness:Math.round(this.value*2.55)}); });
+        });
+      }
+    });
+  }
+  // Climate / Covers / Switches — rebuild content if popup is open
+  if (document.getElementById('climatePopup')?.classList.contains('open'))  buildClimatePopup();
+  if (document.getElementById('coversPopup')?.classList.contains('open'))   buildCoversPopup();
+  if (document.getElementById('switchesPopup')?.classList.contains('open')) buildSwitchesPopup();
 }
 
 // ═══════════════════════════════════════════════
