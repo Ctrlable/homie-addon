@@ -1433,19 +1433,28 @@ function pingConn(conn) {
   const dot  = document.getElementById(`cdot-${conn.id}`);
   const lbl  = document.getElementById(`curl-${conn.id}`);
   if (!dot) return;
-  dot.className = 'mgr-conn-dot'; // reset to grey while probing
+  dot.className = 'mgr-conn-dot';
 
+  // Proxy mode: client-config.js provides id/label/proxyUrl only — no token or direct URL
+  if (conn.proxyUrl && !conn.token) {
+    fetch('health', { signal: AbortSignal.timeout(3000) })
+      .then(r => r.json())
+      .then(() => { dot.className = 'mgr-conn-dot ok'; if (lbl) lbl.textContent = 'proxy'; })
+      .catch(() => { dot.className = 'mgr-conn-dot err'; if (lbl) lbl.textContent = 'unreachable'; });
+    return;
+  }
+
+  // Standalone mode: direct HA ping with token
   const tryUrl = (url, fallback) => {
     if (!url) { if (fallback) tryUrl(fallback, null); else { dot.className='mgr-conn-dot err'; if(lbl) lbl.textContent='unreachable'; } return; }
     fetch(`${url}/api/`, {
       headers:{ Authorization:`Bearer ${conn.token}` },
-      signal: AbortSignal.timeout(fallback ? 1500 : 4000)  // short timeout on LAN probe
+      signal: AbortSignal.timeout(fallback ? 1500 : 4000)
     }).then(r => {
       dot.className = 'mgr-conn-dot ' + (r.ok ? 'ok' : 'err');
       if (lbl) lbl.textContent = r.ok ? (fallback ? 'lan' : (conn.lan ? 'lan' : 'wan')) : 'err';
     }).catch(() => {
       if (fallback) {
-        // LAN failed — silently try WAN
         tryUrl(fallback, null);
         if (lbl) lbl.textContent = 'wan…';
       } else {
