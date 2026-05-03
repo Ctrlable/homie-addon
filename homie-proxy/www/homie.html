@@ -2260,6 +2260,24 @@ function buildChipCfg() {
 // ═══════════════════════════════════════════════
 let pickerTargetId    = null;
 let pickerAllEntities = [];
+let pickerWs          = null;
+
+// Find the best connection to use for the picker (config screen or active dashboard)
+function getPickerConn() {
+  const selVal = document.getElementById('cfgConnSel')?.value ||
+                 document.getElementById('edConnSel')?.value ||
+                 DB?.connId;
+  return CONNS.find(c => c.id === selVal) || CONNS[0] || null;
+}
+
+function populatePicker(states) {
+  states.forEach(s => { entityStates[s.entity_id] = s; });
+  pickerAllEntities = Object.entries(entityStates).map(([eid, s]) => ({
+    entity_id: eid, state: s.state, domain: eid.split('.')[0]
+  })).sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+  renderPickerList(document.getElementById('pickerSearch')?.value || '');
+  setTimeout(() => document.getElementById('pickerSearch')?.focus(), 50);
+}
 
 function openEntityPicker(inputId) {
   pickerTargetId = inputId;
@@ -2267,33 +2285,55 @@ function openEntityPicker(inputId) {
   document.getElementById('entityPickerOverlay').classList.add('open');
 
   if (Object.keys(entityStates).length > 0) {
+    // States already loaded from running dashboard
     pickerAllEntities = Object.entries(entityStates).map(([id, s]) => ({
       entity_id: id, state: s.state, domain: id.split('.')[0]
     })).sort((a, b) => a.entity_id.localeCompare(b.entity_id));
     renderPickerList('');
     setTimeout(() => document.getElementById('pickerSearch').focus(), 50);
-  } else if (ws && ws.readyState === WebSocket.OPEN) {
-    document.getElementById('pickerList').innerHTML =
-      '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4);font-size:9px;letter-spacing:.2em">Loading entities…</div>';
-    const id = msgId++;
-    pendingCalls[id] = result => {
-      result.forEach(s => { entityStates[s.entity_id] = s; });
-      pickerAllEntities = Object.entries(entityStates).map(([eid, s]) => ({
-        entity_id: eid, state: s.state, domain: eid.split('.')[0]
-      })).sort((a, b) => a.entity_id.localeCompare(b.entity_id));
-      renderPickerList(document.getElementById('pickerSearch').value || '');
-      document.getElementById('pickerSearch').focus();
-    };
-    send({ id, type: 'get_states' });
-  } else {
-    pickerAllEntities = [];
-    renderPickerList('');
+    return;
   }
+
+  const loadingHtml = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.4);font-size:9px;letter-spacing:.2em">Loading entities…</div>';
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    // Dashboard WS open — request states through it
+    document.getElementById('pickerList').innerHTML = loadingHtml;
+    const id = msgId++;
+    pendingCalls[id] = result => populatePicker(result);
+    send({ id, type: 'get_states' });
+    return;
+  }
+
+  // No dashboard WS open — open a temporary WS just to fetch states
+  const conn = getPickerConn();
+  if (!conn) { pickerAllEntities = []; renderPickerList(''); return; }
+
+  document.getElementById('pickerList').innerHTML = loadingHtml;
+  if (pickerWs) { try { pickerWs.close(); } catch(e){} pickerWs = null; }
+
+  const wsUrl = conn.proxyUrl ||
+    (conn.lan || conn.url || conn.wan || '').replace(/^http/, 'ws') + '/api/websocket';
+  try { pickerWs = new WebSocket(wsUrl); } catch(e) { pickerAllEntities = []; renderPickerList(''); return; }
+
+  let pId = 1;
+  pickerWs.onmessage = ev => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === 'auth_required' && conn.token) {
+      pickerWs.send(JSON.stringify({ type: 'auth', access_token: conn.token }));
+    } else if (msg.type === 'auth_ok') {
+      pickerWs.send(JSON.stringify({ id: pId++, type: 'get_states' }));
+    } else if (msg.type === 'result' && msg.success) {
+      populatePicker(msg.result);
+    }
+  };
+  pickerWs.onerror = () => { pickerAllEntities = []; renderPickerList(''); };
 }
 
 function closeEntityPicker() {
   document.getElementById('entityPickerOverlay').classList.remove('open');
   pickerTargetId = null;
+  if (pickerWs) { try { pickerWs.close(); } catch(e){} pickerWs = null; }
 }
 
 function renderPickerList(filter) {
