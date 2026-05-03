@@ -11,11 +11,15 @@
 #   and is used only to authenticate the server-side WS to HA.
 # ============================================================
 
-bashio::log.info "Starting Homie Dashboard Proxy v1.2.10"
+bashio::log.info "Starting Homie Dashboard Proxy v1.3.0"
 
 # ── Read connection list from options.json ──────────────────
 CONNECTIONS="$(jq -c '.connections // []' /data/options.json)"
 export HOMIE_CONNECTIONS="${CONNECTIONS}"
+
+# ── Auth passwords (optional — leave blank to disable auth) ─
+export HOMIE_ADMIN_PASSWORD="$(jq -r '.admin_password // ""' /data/options.json)"
+export HOMIE_VIEWER_PASSWORD="$(jq -r '.viewer_password // ""' /data/options.json)"
 
 # ── Port ────────────────────────────────────────────────────
 export HOMIE_PORT="3001"

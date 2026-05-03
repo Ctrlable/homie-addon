@@ -24,13 +24,17 @@ const express = require('express');
 const http    = require('http');
 const path    = require('path');
 const fs      = require('fs');
+const crypto  = require('crypto');
 const { WebSocket, WebSocketServer } = require('ws');
 
 const DASHBOARDS_FILE = '/data/dashboards.json';
 
 // ── Config ────────────────────────────────────────────────────────────────
-const PORT = parseInt(process.env.HOMIE_PORT || '3001', 10);
-const LOG  = process.env.HOMIE_LOG || 'info';
+const PORT            = parseInt(process.env.HOMIE_PORT || '3001', 10);
+const LOG             = process.env.HOMIE_LOG || 'info';
+const ADMIN_PASSWORD  = process.env.HOMIE_ADMIN_PASSWORD  || '';
+const VIEWER_PASSWORD = process.env.HOMIE_VIEWER_PASSWORD || '';
+const AUTH_ENABLED    = !!(ADMIN_PASSWORD || VIEWER_PASSWORD);
 
 // Parse connections from env (set by run.sh from options.json)
 let CONNECTIONS = [];
@@ -80,6 +84,39 @@ setInterval(() => {
     else rateLimitMap.set(key, fresh);
   }
 }, 5 * 60 * 1000);
+
+// ── Session store ─────────────────────────────────────────────────────────
+const sessions   = new Map(); // token → { role, expires }
+const SESSION_TTL = 12 * 60 * 60 * 1000; // 12 hours
+
+function createSession(role) {
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.set(token, { role, expires: Date.now() + SESSION_TTL });
+  for (const [t, s] of sessions) if (Date.now() > s.expires) sessions.delete(t);
+  return token;
+}
+
+function validateSession(token) {
+  if (!token) return null;
+  const s = sessions.get(token);
+  if (!s) return null;
+  if (Date.now() > s.expires) { sessions.delete(token); return null; }
+  return s.role;
+}
+
+function bearerToken(req) {
+  const h = req.headers['authorization'] || '';
+  return h.startsWith('Bearer ') ? h.slice(7) : null;
+}
+
+// Middleware: protect HA data routes when auth is enabled
+function requireAuth(req, res, next) {
+  if (!AUTH_ENABLED) return next();
+  const role = validateSession(bearerToken(req));
+  if (!role) return res.status(401).json({ error: 'unauthorized' });
+  req.userRole = role;
+  next();
+}
 
 // ── Express HTTP server ───────────────────────────────────────────────────
 const app    = express();
@@ -132,6 +169,38 @@ window.HOMIE_CONNECTIONS = ${JSON.stringify(safeConns, null, 2)};
 
 // Health check endpoint (used by HA watchdog)
 app.get('/health', (_req, res) => res.json({ status: 'ok', connections: Object.keys(CONN_MAP).length }));
+
+// ── Auth routes ───────────────────────────────────────────────────────────
+app.post('/auth/login', express.json({ limit: '1kb' }), (req, res) => {
+  const { password } = req.body || {};
+  if (!password) { res.status(400).json({ error: 'password_required' }); return; }
+  if (ADMIN_PASSWORD && password === ADMIN_PASSWORD) {
+    log('info', `[auth] Admin login from ${req.ip}`);
+    res.json({ token: createSession('admin'), role: 'admin' });
+  } else if (VIEWER_PASSWORD && password === VIEWER_PASSWORD) {
+    log('info', `[auth] Viewer login from ${req.ip}`);
+    res.json({ token: createSession('viewer'), role: 'viewer' });
+  } else {
+    log('warn', `[auth] Failed login attempt from ${req.ip}`);
+    res.status(401).json({ error: 'invalid_password' });
+  }
+});
+
+app.post('/auth/logout', (req, res) => {
+  const token = bearerToken(req);
+  if (token) sessions.delete(token);
+  res.json({ ok: true });
+});
+
+app.get('/auth/check', (req, res) => {
+  if (!AUTH_ENABLED) { res.json({ auth: false, role: 'admin' }); return; }
+  const role = validateSession(bearerToken(req));
+  if (!role) { res.status(401).json({ error: 'unauthorized' }); return; }
+  res.json({ auth: true, role });
+});
+
+// Protect all HA data and dashboard routes when auth is configured
+app.use(['/ha-test', '/ha-states', '/ha-mediabrowse', '/ha-media', '/ha-api', '/ha-callservice', '/dashboards'], requireAuth);
 
 // Diagnostic endpoint — tests whether the proxy can actually reach HA
 app.get('/ha-test/:connId', (req, res) => {

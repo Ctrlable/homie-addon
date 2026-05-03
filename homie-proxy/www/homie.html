@@ -982,9 +982,54 @@ html, body {
 }
 .media-folder { align-items:center; justify-content:center; flex-direction:column; gap:4px; }
 .media-folder-icon { font-size:26px; }
+
+/* LOGIN */
+.login-overlay {
+  position:fixed; inset:0; z-index:9999;
+  background:rgba(0,0,0,.97); backdrop-filter:blur(8px);
+  display:flex; align-items:center; justify-content:center;
+}
+.login-overlay.hidden { display:none; }
+.login-box {
+  display:flex; flex-direction:column; align-items:center; gap:18px;
+  padding:3rem 3.5rem; min-width:300px;
+  background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.1); border-radius:20px;
+}
+.login-wordmark { font-family:var(--display-font); font-size:2.2rem; letter-spacing:.45em; color:#fff; font-weight:300; }
+.login-sub { font-size:7px; letter-spacing:.3em; color:rgba(255,255,255,.3); text-transform:uppercase; margin-top:-10px; }
+.login-input {
+  width:100%; box-sizing:border-box; padding:11px 16px;
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.15);
+  border-radius:10px; color:#fff; font-size:15px; text-align:center;
+  letter-spacing:.15em; outline:none; transition:border-color .2s;
+}
+.login-input:focus { border-color:var(--accent); }
+.login-btn {
+  width:100%; padding:11px; background:var(--accent); border:none;
+  border-radius:10px; color:#000; font-size:8px; letter-spacing:.35em;
+  text-transform:uppercase; font-weight:700; cursor:pointer; transition:opacity .2s;
+}
+.login-btn:hover { opacity:.85; }
+.login-btn:disabled { opacity:.4; cursor:default; }
+.login-error { font-size:7px; letter-spacing:.2em; color:#e05; text-transform:uppercase; min-height:1em; }
+
+/* Role-based visibility */
+html[data-role="viewer"] .admin-only { display:none !important; }
 </style>
 </head>
 <body>
+
+<!-- LOGIN OVERLAY -->
+<div class="login-overlay hidden" id="loginOverlay">
+  <div class="login-box">
+    <div class="login-wordmark">Homie</div>
+    <div class="login-sub">Enter password to continue</div>
+    <input class="login-input" type="password" id="loginPassword" placeholder="••••••••"
+      onkeydown="if(event.key==='Enter')doLogin()" autocomplete="current-password" />
+    <button class="login-btn" id="loginBtn" onclick="doLogin()">Unlock</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
 
 <!-- ══════════════════════════════════════════════
      SCREEN 1: MANAGER
@@ -997,7 +1042,7 @@ html, body {
       <div class="mgr-wordmark-sub">Dashboard Manager</div>
     </div>
     <div class="mgr-header-actions">
-      <button class="topbar-btn" onclick="openEditor(null)" style="font-size:9px">+ New Dashboard</button>
+      <button class="topbar-btn admin-only" onclick="openEditor(null)" style="font-size:9px">+ New Dashboard</button>
     </div>
   </div>
 
@@ -1045,7 +1090,8 @@ html, body {
       <button class="topbar-btn manager-btn" onclick="goManager()" title="Back to Manager">⊞</button>
       <button class="topbar-btn" onclick="buildCalendarPopup()">Calendar</button>
       <button class="topbar-btn" onclick="openPopup('themePopup')">Theme</button>
-      <button class="topbar-btn ghost" onclick="openCfg()" title="Configure">⚙</button>
+      <button class="topbar-btn ghost admin-only" onclick="openCfg()" title="Configure">⚙</button>
+      <button class="topbar-btn ghost" id="logoutBtn" onclick="doLogout()" title="Log out" style="display:none">⏻</button>
     </div>
   </div>
 
@@ -1612,45 +1658,154 @@ let msgId       = 1;
 let entityStates = {};
 let pendingCalls = {};
 let CONNS        = [];    // from config.js
+let SESSION      = null;  // { token, role } — null when auth not enabled
+
+// ═══════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════
+
+// Intercept all fetch calls to ha-* and dashboard routes:
+// inject Authorization header and handle session expiry.
+(function() {
+  const _fetch = window.fetch.bind(window);
+  window.fetch = function(url, opts = {}) {
+    const u = typeof url === 'string' ? url : url.url;
+    const isProtected = u && !u.startsWith('http') && !u.startsWith('//') &&
+      (u.startsWith('ha-') || u.startsWith('dashboards') || u.startsWith('api/'));
+    if (isProtected && SESSION?.token) {
+      opts = { ...opts, headers: { ...(opts.headers||{}), 'Authorization': `Bearer ${SESSION.token}` } };
+    }
+    return _fetch(url, opts).then(r => {
+      if (r.status === 401 && isProtected) {
+        SESSION = null; localStorage.removeItem('homie_session'); showLoginScreen('Session expired');
+      }
+      return r;
+    });
+  };
+})();
+
+function showLoginScreen(msg) {
+  const overlay = document.getElementById('loginOverlay');
+  overlay.classList.remove('hidden');
+  document.getElementById('loginError').textContent = msg || '';
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('loginBtn').textContent = 'Unlock';
+  document.getElementById('loginBtn').disabled = false;
+  setTimeout(() => document.getElementById('loginPassword').focus(), 120);
+}
+
+function hideLoginScreen() {
+  document.getElementById('loginOverlay').classList.add('hidden');
+}
+
+async function doLogin() {
+  const pw = document.getElementById('loginPassword').value;
+  if (!pw) return;
+  const btn = document.getElementById('loginBtn');
+  btn.textContent = '…'; btn.disabled = true;
+  document.getElementById('loginError').textContent = '';
+  try {
+    const r = await fetch('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw }),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      document.getElementById('loginError').textContent = 'Incorrect password';
+      btn.textContent = 'Unlock'; btn.disabled = false;
+      document.getElementById('loginPassword').select();
+      return;
+    }
+    SESSION = { token: d.token, role: d.role };
+    localStorage.setItem('homie_session', JSON.stringify(SESSION));
+    applyRole(SESSION.role);
+    hideLoginScreen();
+    if (window._cfgReady) { bootApp(); } else { window._cfgPending = bootApp; }
+  } catch(e) {
+    document.getElementById('loginError').textContent = 'Connection error';
+    btn.textContent = 'Unlock'; btn.disabled = false;
+  }
+}
+
+async function doLogout() {
+  if (SESSION?.token) {
+    fetch('/auth/logout', { method:'POST', headers:{ 'Authorization': `Bearer ${SESSION.token}` } }).catch(()=>{});
+  }
+  SESSION = null;
+  localStorage.removeItem('homie_session');
+  location.reload();
+}
+
+function applyRole(role) {
+  document.documentElement.setAttribute('data-role', role || 'viewer');
+  const lb = document.getElementById('logoutBtn');
+  if (lb) lb.style.display = SESSION ? '' : 'none';
+}
+
+async function checkAuth() {
+  // Try to restore a stored session
+  try { SESSION = JSON.parse(localStorage.getItem('homie_session') || 'null'); } catch { SESSION = null; }
+  const headers = SESSION?.token ? { 'Authorization': `Bearer ${SESSION.token}` } : {};
+  try {
+    const r = await fetch('/auth/check', { headers });
+    if (r.status === 401) { SESSION = null; localStorage.removeItem('homie_session'); showLoginScreen(); return false; }
+    const d = await r.json();
+    if (!d.auth) {
+      SESSION = { token: null, role: 'admin' }; // auth not configured — full access
+    } else {
+      SESSION = { token: SESSION?.token, role: d.role };
+    }
+    applyRole(SESSION.role);
+    return true;
+  } catch {
+    // proxy unreachable — proceed without auth
+    SESSION = { token: null, role: 'admin' };
+    applyRole('admin');
+    return true;
+  }
+}
 
 // ═══════════════════════════════════════════════
 // BOOT
 // ═══════════════════════════════════════════════
+function bootApp() {
+  // Seed CONNS from client-config.js if it already loaded
+  CONNS = window.HOMIE_CONNECTIONS || [];
+
+  const finishBoot = () => {
+    buildConnRow();
+    buildDbGrid();
+    buildThemeGrid();
+    populateConnSelects();
+    startClock();
+    const sp = new URLSearchParams(window.location.search);
+    const autoD = sp.get('d');
+    if (autoD) {
+      const db = dashboards.find(d => d.id === autoD);
+      if (db) launchDashboard(db.id);
+    }
+  };
+
+  Promise.all([
+    fetch('api/connections', { signal: AbortSignal.timeout(4000) })
+      .then(r => r.ok ? r.json() : null)
+      .catch(() => null),
+    loadAllDashboards(),
+  ]).then(([serverConns]) => {
+    if (Array.isArray(serverConns) && serverConns.length > 0) CONNS = serverConns;
+    finishBoot();
+  }).catch(() => finishBoot());
+}
+
 window.addEventListener('DOMContentLoaded', () => {
-  function boot() {
-    // Seed CONNS from client-config.js if it already loaded
-    CONNS = window.HOMIE_CONNECTIONS || [];
-
-    // Fetch connections from proxy API (more reliable than <script> loading)
-    // and load dashboards in parallel, then build the UI.
-    const finishBoot = () => {
-      buildConnRow();
-      buildDbGrid();
-      buildThemeGrid();
-      populateConnSelects();
-      startClock();
-      const sp = new URLSearchParams(window.location.search);
-      const autoD = sp.get('d');
-      if (autoD) {
-        const db = dashboards.find(d => d.id === autoD);
-        if (db) launchDashboard(db.id);
-      }
-    };
-
-    Promise.all([
-      fetch('api/connections', { signal: AbortSignal.timeout(4000) })
-        .then(r => r.ok ? r.json() : null)
-        .catch(() => null),
-      loadAllDashboards(),
-    ]).then(([serverConns]) => {
-      if (Array.isArray(serverConns) && serverConns.length > 0) CONNS = serverConns;
-      finishBoot();
-    }).catch(() => finishBoot()); // always build UI even if fetches fail
-  }
-
-  // client-config.js may still be loading — defer boot until it signals ready
-  if (window._cfgReady) { boot(); }
-  else { window._cfgPending = boot; }
+  // Check auth before booting — shows login screen if needed
+  checkAuth().then(ok => {
+    if (!ok) return; // login screen is shown; bootApp() called after successful login
+    // client-config.js may still be loading — defer boot until it signals ready
+    if (window._cfgReady) { bootApp(); }
+    else { window._cfgPending = bootApp; }
+  });
 
   // keyboard
   document.addEventListener('keydown', e => {
@@ -1814,8 +1969,7 @@ function buildDbGrid() {
           <div class="db-card-conn">${conn ? conn.label : 'No connection'}</div>
           <div class="db-card-actions" onclick="event.stopPropagation()">
             <div class="db-icon-btn" onclick="copyDashboardUrl('${db.id}')" title="Copy direct link">🔗</div>
-            <div class="db-icon-btn" onclick="openEditor('${db.id}')" title="Edit">✎</div>
-            <div class="db-icon-btn danger" onclick="confirmDeleteDb('${db.id}')" title="Delete">✕</div>
+            ${SESSION?.role === 'admin' ? `<div class="db-icon-btn" onclick="openEditor('${db.id}')" title="Edit">✎</div><div class="db-icon-btn danger" onclick="confirmDeleteDb('${db.id}')" title="Delete">✕</div>` : ''}
           </div>
         </div>
       </div>
@@ -1824,12 +1978,14 @@ function buildDbGrid() {
     grid.appendChild(card);
   });
 
-  // New card
-  const newCard = document.createElement('div');
-  newCard.className = 'db-card new-card';
-  newCard.innerHTML = `<div class="new-card-icon">＋</div><div class="new-card-label">New Dashboard</div>`;
-  newCard.onclick = () => openEditor(null);
-  grid.appendChild(newCard);
+  // New card — admin only
+  if (SESSION?.role === 'admin') {
+    const newCard = document.createElement('div');
+    newCard.className = 'db-card new-card';
+    newCard.innerHTML = `<div class="new-card-icon">＋</div><div class="new-card-label">New Dashboard</div>`;
+    newCard.onclick = () => openEditor(null);
+    grid.appendChild(newCard);
+  }
 }
 
 function populateConnSelects() {
