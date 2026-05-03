@@ -1797,15 +1797,12 @@ function connectWS(conn, resolvedUrl) {
   // proxyUrl like ws://homeassistant.local:3001/proxy/<id>.
   // The proxy injects the auth token server-side — browser sends nothing.
   if (conn.proxyUrl) {
-    // Always match the page's protocol to avoid mixed-content blocks.
-    // HA ingress may not forward X-Forwarded-Proto so the server-side proxyUrl
-    // might say ws:// even when the page is served over HTTPS.
-    let wsUrl = conn.proxyUrl;
-    if (window.location.protocol === 'https:' && wsUrl.startsWith('ws:')) {
-      wsUrl = 'wss:' + wsUrl.slice(3);
-    } else if (window.location.protocol === 'http:' && wsUrl.startsWith('wss:')) {
-      wsUrl = 'ws:' + wsUrl.slice(4);
-    }
+    // Build WS URL from window.location — the server-generated proxyUrl host is
+    // the internal container address, not browser-reachable. window.location is
+    // always correct for both HA ingress and direct LAN access.
+    const proto    = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const basePath = window.location.pathname.replace(/\/[^/]*$/, '');
+    const wsUrl    = `${proto}//${window.location.host}${basePath}/proxy/${encodeURIComponent(conn.id)}`;
     log('info', `[${conn.id}] Connecting via proxy: ${wsUrl}`);
     setConnStatus('connecting', wsUrl, true);
     try { ws = new WebSocket(wsUrl); } catch(e) { setConnStatus('err', wsUrl, true); return; }
@@ -2607,13 +2604,14 @@ function mediaBrowse(contentId) {
   if (mediaWs) closeMediaWs();
   grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">Connecting…</div>';
 
-  let wsUrl = conn.proxyUrl
-    || ((conn.lan || conn.url || conn.wan || '').replace(/^http/, 'ws') + '/api/websocket');
-  // Match protocol to page to avoid mixed-content block (same fix as connectWS)
-  if (window.location.protocol === 'https:' && wsUrl.startsWith('ws:')) {
-    wsUrl = 'wss:' + wsUrl.slice(3);
-  } else if (window.location.protocol === 'http:' && wsUrl.startsWith('wss:')) {
-    wsUrl = 'ws:' + wsUrl.slice(4);
+  let wsUrl;
+  if (conn.proxyUrl) {
+    // Same window.location approach as connectWS — internal container host is not browser-reachable
+    const proto    = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const basePath = window.location.pathname.replace(/\/[^/]*$/, '');
+    wsUrl = `${proto}//${window.location.host}${basePath}/proxy/${encodeURIComponent(conn.id)}`;
+  } else {
+    wsUrl = (conn.lan || conn.url || conn.wan || '').replace(/^http/, 'ws') + '/api/websocket';
   }
   try { mediaWs = new WebSocket(wsUrl); } catch(e) {
     grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">WebSocket failed</div>';
