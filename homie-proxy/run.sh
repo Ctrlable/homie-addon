@@ -11,7 +11,7 @@
 #   and is used only to authenticate the server-side WS to HA.
 # ============================================================
 
-bashio::log.info "Starting Homie Dashboard Proxy v1.1.7"
+bashio::log.info "Starting Homie Dashboard Proxy v1.1.8"
 
 # ── Read connection list from options.json ──────────────────
 CONNECTIONS="$(jq -c '.connections // []' /data/options.json)"

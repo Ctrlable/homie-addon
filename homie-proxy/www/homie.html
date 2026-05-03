@@ -369,6 +369,13 @@ html, body {
 .stat-value { font-size:11px; color:#fff; font-weight:500; letter-spacing:.04em; text-shadow:1px 1px 3px rgba(0,0,0,.9); transition:color .3s; }
 .stat-value.on { color:var(--accent-hi); }
 .stat-value.off { color:rgba(255,255,255,.45); }
+.stat-hint {
+  padding:.9rem 1.2rem; text-align:center; cursor:pointer;
+  font-size:8px; letter-spacing:.2em; color:rgba(255,255,255,.28);
+  border:1px dashed rgba(255,255,255,.12); border-radius:4px;
+  transition:color .2s, border-color .2s;
+}
+.stat-hint:hover { color:var(--accent); border-color:var(--ac-4); }
 
 /* NOW PLAYING */
 .now-playing {
@@ -1111,7 +1118,8 @@ html, body {
         <div class="cfg-tab-body active" id="tab-general">
           <div class="cfg-field"><label class="cfg-label"><span class="conn-dot" id="connDot"></span>Connection Status</label><div style="font-size:9px;color:rgba(255,255,255,.38);letter-spacing:.1em;font-family:'DM Mono',monospace" id="connStatusTxt">—</div></div>
           <div class="cfg-field"><label class="cfg-label">Dashboard Name</label><input class="cfg-input" id="cfgName" placeholder="Living Room" /></div>
-          <div class="cfg-field"><label class="cfg-label">Background Image URL</label><div class="cfg-input-row"><input class="cfg-input" id="cfgBg" placeholder="https://… or leave blank" /><button class="pick-btn" onclick="openMediaBrowser('cfgBg')" title="Browse HA media">🖼</button></div></div>
+          <div class="cfg-field"><label class="cfg-label">Background Image URL</label><div class="cfg-input-row"><input class="cfg-input" id="cfgBg" placeholder="https://… or leave blank" onchange="DB.bg=this.value;updateBgPreview()" /><button class="pick-btn" onclick="openMediaBrowser('cfgBg')" title="Browse HA media">🖼</button></div>
+            <div id="bgPreview" style="margin-top:6px;width:100%;height:60px;border-radius:4px;background-size:cover;background-position:center;display:none;border:1px solid var(--ac-25)"></div></div>
           <div class="cfg-field"><label class="cfg-label">Greeting Subtitle</label><input class="cfg-input" id="cfgGreetSub" placeholder="Welcome Home" /></div>
           <div class="cfg-field"><label class="cfg-label">Weather Entity</label><div class="cfg-input-row"><input class="cfg-input cfg-mono" id="cfgWeather" placeholder="weather.home" onchange="DB.weather=this.value" /><button class="pick-btn" onclick="openEntityPicker('cfgWeather','weather')" title="Pick entity">🔍</button></div></div>
           <div class="cfg-row">
@@ -1927,7 +1935,12 @@ function updateAll() {
 function buildHeroStats() {
   const c = document.getElementById('heroStats');
   const stats = (DB.stats||[]).slice(0,10);
-  c.style.gridTemplateColumns = `repeat(${Math.min(5, stats.length||1)},1fr)`;
+  if (!stats.length) {
+    c.style.gridTemplateColumns = '';
+    c.innerHTML = '<div class="stat-hint" onclick="openCfg()">Tap ⚙ → Hero Stats to add entity tiles here</div>';
+    return;
+  }
+  c.style.gridTemplateColumns = `repeat(${Math.min(5, stats.length)},1fr)`;
   c.innerHTML = stats.map((s,i) => `
     <div class="stat" onclick="statClick('${s.entity}')">
       <div class="stat-label">${s.icon||''} ${s.label}</div>
@@ -2210,6 +2223,18 @@ function startClock() {
 // CONFIG PANEL (for open dashboard)
 // ═══════════════════════════════════════════════
 function openCfg() { populateCfgForm(); document.getElementById('cfgOverlay').classList.add('open'); }
+
+function updateBgPreview() {
+  const url = document.getElementById('cfgBg')?.value?.trim();
+  const p   = document.getElementById('bgPreview');
+  if (!p) return;
+  if (url) {
+    p.style.backgroundImage = `url('${url}')`;
+    p.style.display = 'block';
+  } else {
+    p.style.display = 'none';
+  }
+}
 function closeCfg() { document.getElementById('cfgOverlay').classList.remove('open'); }
 function cfgOverlayClick(e) { if (e.target.id==='cfgOverlay') closeCfg(); }
 function switchTab(t) {
@@ -2222,6 +2247,7 @@ function switchTab(t) {
 function populateCfgForm() {
   if (!DB) return;
   sv('cfgName', DB.name); sv('cfgBg', DB.bg); sv('cfgGreetSub', DB.greeting);
+  updateBgPreview();
   sv('cfgWeather', DB.weather); sv('cfgTempUnit', DB.tempUnit); sv('cfgThemeSel', DB.theme||'');
   sv('cfgMedia', DB.media); sv('cfgCalendars', DB.calendars);
   sv('cfgF1Temp', DB.f1Temp); sv('cfgF1Hum', DB.f1Hum); sv('cfgF1Label', DB.f1Label);
@@ -2581,8 +2607,14 @@ function mediaBrowse(contentId) {
   if (mediaWs) closeMediaWs();
   grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">Connecting…</div>';
 
-  const wsUrl = conn.proxyUrl
+  let wsUrl = conn.proxyUrl
     || ((conn.lan || conn.url || conn.wan || '').replace(/^http/, 'ws') + '/api/websocket');
+  // Match protocol to page to avoid mixed-content block (same fix as connectWS)
+  if (window.location.protocol === 'https:' && wsUrl.startsWith('ws:')) {
+    wsUrl = 'wss:' + wsUrl.slice(3);
+  } else if (window.location.protocol === 'http:' && wsUrl.startsWith('wss:')) {
+    wsUrl = 'ws:' + wsUrl.slice(4);
+  }
   try { mediaWs = new WebSocket(wsUrl); } catch(e) {
     grid.innerHTML = '<div style="text-align:center;padding:2rem;color:rgba(255,255,255,.3);font-size:9px;letter-spacing:.2em">WebSocket failed</div>';
     return;
