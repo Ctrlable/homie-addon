@@ -1370,12 +1370,20 @@ let CONNS        = [];    // from config.js
 window.addEventListener('DOMContentLoaded', () => {
   function boot() {
     CONNS = window.HOMIE_CONNECTIONS || [];
-    loadAllDashboards();
-    buildConnRow();
-    buildDbGrid();
-    buildThemeGrid();
-    populateConnSelects();
-    startClock();
+    loadAllDashboards().then(() => {
+      buildConnRow();
+      buildDbGrid();
+      buildThemeGrid();
+      populateConnSelects();
+      startClock();
+      // Open a specific dashboard if ?d=id is in the URL
+      const sp = new URLSearchParams(window.location.search);
+      const autoD = sp.get('d');
+      if (autoD) {
+        const db = dashboards.find(d => d.id === autoD);
+        if (db) launchDashboard(db.id);
+      }
+    });
   }
 
   // client-config.js may still be loading — defer boot until it signals ready
@@ -1398,14 +1406,36 @@ window.addEventListener('DOMContentLoaded', () => {
 // ═══════════════════════════════════════════════
 // PERSISTENCE
 // ═══════════════════════════════════════════════
-function loadAllDashboards() {
+async function loadAllDashboards() {
+  // Try server-side storage first (shared across all browsers/devices)
+  try {
+    const r = await fetch('dashboards', { signal: AbortSignal.timeout(3000) });
+    if (r.ok) {
+      const data = await r.json();
+      if (Array.isArray(data) && data.length > 0) {
+        dashboards = data;
+        localStorage.setItem('homie-dashboards', JSON.stringify(dashboards));
+        return;
+      }
+    }
+  } catch(e) { /* fall through to localStorage */ }
+  // Fallback: localStorage (also serves as migration source)
   try {
     const raw = localStorage.getItem('homie-dashboards');
     dashboards = raw ? JSON.parse(raw) : [];
+    // Auto-migrate local dashboards to server on first access
+    if (dashboards.length > 0) saveAllDashboards();
   } catch(e) { dashboards = []; }
 }
+
 function saveAllDashboards() {
   localStorage.setItem('homie-dashboards', JSON.stringify(dashboards));
+  fetch('dashboards', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dashboards),
+    signal: AbortSignal.timeout(5000),
+  }).catch(() => {});
 }
 function getDb(id) { return dashboards.find(d => d.id === id); }
 
@@ -1521,6 +1551,7 @@ function buildDbGrid() {
         <div class="db-card-footer">
           <div class="db-card-conn">${conn ? conn.label : 'No connection'}</div>
           <div class="db-card-actions" onclick="event.stopPropagation()">
+            <div class="db-icon-btn" onclick="copyDashboardUrl('${db.id}')" title="Copy direct link">🔗</div>
             <div class="db-icon-btn" onclick="openEditor('${db.id}')" title="Edit">✎</div>
             <div class="db-icon-btn danger" onclick="confirmDeleteDb('${db.id}')" title="Delete">✕</div>
           </div>
@@ -1604,6 +1635,14 @@ function saveEditor() {
   saveAllDashboards();
   buildDbGrid();
   closeEditor();
+}
+
+function copyDashboardUrl(id) {
+  const url = window.location.origin + window.location.pathname + '?d=' + encodeURIComponent(id);
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = event.target.closest('.db-icon-btn');
+    if (btn) { const orig = btn.textContent; btn.textContent = '✓'; setTimeout(() => btn.textContent = orig, 1500); }
+  }).catch(() => prompt('Copy this link:', url));
 }
 
 function confirmDeleteDb(id) {

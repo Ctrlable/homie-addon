@@ -23,7 +23,10 @@
 const express = require('express');
 const http    = require('http');
 const path    = require('path');
+const fs      = require('fs');
 const { WebSocket, WebSocketServer } = require('ws');
+
+const DASHBOARDS_FILE = '/data/dashboards.json';
 
 // ── Config ────────────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.HOMIE_PORT || '3001', 10);
@@ -191,6 +194,31 @@ app.get('/ha-api/:connId/*', (req, res) => {
   const haPath = '/' + req.params[0];
   log('info', `[ha-api][${connId}] → ${haPath}`);
   proxyHaHttp(req, res, conn, haPath, 'no-store');
+});
+
+// GET /dashboards — returns all saved dashboards (shared across browsers)
+app.get('/dashboards', (_req, res) => {
+  try {
+    const data = fs.existsSync(DASHBOARDS_FILE)
+      ? JSON.parse(fs.readFileSync(DASHBOARDS_FILE, 'utf8'))
+      : [];
+    res.json(Array.isArray(data) ? data : []);
+  } catch(e) {
+    log('warn', `Failed to read dashboards: ${e.message}`);
+    res.json([]);
+  }
+});
+
+// POST /dashboards — saves all dashboards (body: JSON array)
+app.post('/dashboards', express.json({ limit: '2mb' }), (req, res) => {
+  try {
+    const data = Array.isArray(req.body) ? req.body : [];
+    fs.writeFileSync(DASHBOARDS_FILE, JSON.stringify(data));
+    res.json({ ok: true, count: data.length });
+  } catch(e) {
+    log('warn', `Failed to save dashboards: ${e.message}`);
+    res.status(500).json({ ok: false, error: e.message });
+  }
 });
 
 // Catch-all: serve homie.html for any unknown path (SPA behaviour)
