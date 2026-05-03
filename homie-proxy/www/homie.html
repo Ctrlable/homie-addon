@@ -1423,7 +1423,8 @@ function buildConnRow() {
     chip.className = 'mgr-conn-chip';
     chip.id = `conn-chip-${conn.id}`;
     // Show both LAN and WAN in tooltip; active URL filled in after ping
-    chip.innerHTML = `<div class="mgr-conn-dot" id="cdot-${conn.id}"></div>${conn.label}<span id="curl-${conn.id}" style="font-size:7px;letter-spacing:.1em;color:rgba(255,255,255,.28);margin-left:6px;font-family:'DM Mono',monospace"></span>`;
+    const safeId = encodeURIComponent(conn.id);
+    chip.innerHTML = `<div class="mgr-conn-dot" id="cdot-${conn.id}"></div>${conn.label}<span id="curl-${conn.id}" style="font-size:7px;letter-spacing:.1em;color:rgba(255,255,255,.28);margin-left:6px;font-family:'DM Mono',monospace"></span><span onclick="testConn('${safeId}','${conn.id}')" title="Test HA connection" style="margin-left:8px;font-size:8px;letter-spacing:.12em;cursor:pointer;color:rgba(255,255,255,.35);text-decoration:underline;font-family:'DM Mono',monospace">test</span><div id="ctest-${conn.id}" style="font-size:8px;letter-spacing:.1em;margin-top:2px;color:rgba(255,180,60,.85);font-family:'DM Mono',monospace;white-space:pre-wrap"></div>`;
     row.appendChild(chip);
     pingConn(conn);
   });
@@ -1465,6 +1466,39 @@ function pingConn(conn) {
   };
 
   tryUrl(conn.lan || conn.url, conn.wan || null);
+}
+
+function testConn(safeId, rawId) {
+  const el = document.getElementById(`ctest-${rawId}`);
+  if (!el) return;
+  el.textContent = 'testing…';
+  fetch(`ha-test/${safeId}`)
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        el.style.color = 'rgba(92,184,122,.9)';
+        el.textContent = `✔ HA OK (${d.ha_url})`;
+      } else if (d.error === 'connection_not_found') {
+        el.style.color = 'rgba(255,120,60,.9)';
+        el.textContent = `✖ connId "${d.connId}" not in proxy map\nregistered: [${(d.registered||[]).join(', ')}]`;
+      } else if (d.error === 'invalid_token') {
+        el.style.color = 'rgba(255,120,60,.9)';
+        el.textContent = `✖ HA rejected token (401)\nCheck addon Configuration → token`;
+      } else if (d.error === 'timeout') {
+        el.style.color = 'rgba(255,120,60,.9)';
+        el.textContent = `✖ Timeout reaching ${d.ha_url}\nCheck addon Configuration → ha_url`;
+      } else {
+        el.style.color = 'rgba(255,120,60,.9)';
+        el.textContent = `✖ ${d.error || 'unknown error'}\n${d.ha_url || ''}`;
+      }
+    })
+    .catch(e => { el.style.color='rgba(255,120,60,.9)'; el.textContent = `✖ fetch failed: ${e.message}`; });
+}
+
+function showPickerError(msg) {
+  pickerAllEntities = [];
+  const list = document.getElementById('pickerList');
+  if (list) list.innerHTML = `<div style="text-align:center;padding:2rem;color:rgba(255,120,60,.8);font-size:9px;letter-spacing:.15em;font-family:'DM Mono',monospace;white-space:pre-wrap">${msg}</div>`;
 }
 
 function buildDbGrid() {
@@ -2306,12 +2340,18 @@ function openEntityPicker(inputId) {
 
   // No WS open — fetch via the proxy REST endpoint (no WebSocket needed)
   const conn = getPickerConn();
-  if (!conn) { pickerAllEntities = []; renderPickerList(''); return; }
+  if (!conn) { showPickerError('No connection configured'); return; }
 
   fetch(`ha-api/${encodeURIComponent(conn.id)}/api/states`)
-    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(states => populatePicker(states))
-    .catch(() => { pickerAllEntities = []; renderPickerList(''); });
+    .then(r => {
+      if (!r.ok) return r.json().then(j => { throw new Error(j.error || r.status); }).catch(() => { throw new Error(`HTTP ${r.status}`); });
+      return r.json();
+    })
+    .then(states => {
+      if (!Array.isArray(states)) throw new Error('unexpected response');
+      populatePicker(states);
+    })
+    .catch(err => showPickerError(err.message));
 }
 
 function closeEntityPicker() {

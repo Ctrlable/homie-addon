@@ -116,6 +116,40 @@ window.HOMIE_CONNECTIONS = ${JSON.stringify(safeConns, null, 2)};
 // Health check endpoint (used by HA watchdog)
 app.get('/health', (_req, res) => res.json({ status: 'ok', connections: Object.keys(CONN_MAP).length }));
 
+// Diagnostic endpoint — tests whether the proxy can actually reach HA
+app.get('/ha-test/:connId', (req, res) => {
+  const connId = req.params.connId;
+  const conn   = CONN_MAP[connId];
+  if (!conn) {
+    return res.json({ ok: false, error: 'connection_not_found', connId, registered: Object.keys(CONN_MAP) });
+  }
+  resolveHaUrl(conn).then(haUrl => {
+    if (!haUrl) return res.json({ ok: false, error: 'no_ha_url', connId, ha_url: conn.ha_url });
+    const mod = haUrl.startsWith('https') ? require('https') : require('http');
+    const probe = mod.request(
+      `${haUrl}/api/`,
+      { method: 'GET', headers: { Authorization: `Bearer ${conn.token}` }, timeout: 5000, rejectUnauthorized: false },
+      haRes => {
+        let body = '';
+        haRes.on('data', d => { body += d; });
+        haRes.on('end', () => {
+          const ok = haRes.statusCode === 200;
+          log('info', `[ha-test][${connId}] ${haUrl}/api/ → ${haRes.statusCode}`);
+          res.json({ ok, connId, ha_url: haUrl, status: haRes.statusCode,
+            error: ok ? null : haRes.statusCode === 401 ? 'invalid_token' : `http_${haRes.statusCode}` });
+        });
+        haRes.resume();
+      }
+    );
+    probe.on('error', e => {
+      log('warn', `[ha-test][${connId}] ${haUrl} → error: ${e.message}`);
+      res.json({ ok: false, connId, ha_url: haUrl, error: e.message });
+    });
+    probe.on('timeout', () => { probe.destroy(); res.json({ ok: false, connId, ha_url: haUrl, error: 'timeout' }); });
+    probe.end();
+  }).catch(e => res.json({ ok: false, connId, error: e.message }));
+});
+
 // Shared HA HTTP proxy helper — adds auth token, pipes response
 function proxyHaHttp(req, res, conn, haPath, cacheControl) {
   const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
@@ -146,9 +180,15 @@ app.get('/ha-media/:connId/*', (req, res) => {
 
 // GET /ha-api/:connId/* — proxy HA REST API calls (used by entity picker, etc.)
 app.get('/ha-api/:connId/*', (req, res) => {
-  const conn = CONN_MAP[req.params.connId];
-  if (!conn) { res.status(404).end(); return; }
-  const haPath = req.path.replace(`/ha-api/${req.params.connId}`, '');
+  const connId = req.params.connId;
+  const conn   = CONN_MAP[connId];
+  if (!conn) {
+    log('warn', `[ha-api] Unknown connId: "${connId}" — registered: [${Object.keys(CONN_MAP).join(', ')}]`);
+    res.status(404).json({ error: 'connection_not_found', connId, registered: Object.keys(CONN_MAP) });
+    return;
+  }
+  const haPath = req.path.replace(`/ha-api/${connId}`, '');
+  log('info', `[ha-api][${connId}] → ${haPath}`);
   proxyHaHttp(req, res, conn, haPath, 'no-store');
 });
 
