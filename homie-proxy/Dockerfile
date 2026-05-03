@@ -6,7 +6,7 @@ LABEL \
   io.hass.name="Homie Dashboard Proxy" \
   io.hass.description="Secure WebSocket proxy for the Homie dashboard" \
   io.hass.type="addon" \
-  io.hass.version="1.1.9a" \
+  io.hass.version="1.2.0" \
   io.hass.arch="aarch64|amd64|armhf|armv7|i386" \
   maintainer="Ctrlable <dev@ctrlable.com>"
 

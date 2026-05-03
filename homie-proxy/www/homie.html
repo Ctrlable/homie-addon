@@ -48,7 +48,7 @@
   })();
 </script>
 
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Montserrat:wght@300;400;500;600&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Crimson+Text:ital,wght@0,400;1,400&family=DM+Mono:ital,wght@0,300;0,400;1,300&family=Josefin+Sans:wght@300;400&family=Lato:wght@300;400;700&family=Merriweather:ital,wght@0,300;0,400;1,300&family=Montserrat:wght@300;400;500;600&family=Oswald:wght@300;400&family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Raleway:wght@300;400&family=Roboto:wght@300;400&display=swap" rel="stylesheet">
 
 <style>
 /* ════════════════════════════════════════════════════
@@ -79,6 +79,7 @@
   --border:   rgba(255,255,255,0.09);
   --text:     #ffffff;
   --text-dim: rgba(255,255,255,0.45);
+  --display-font: 'Cormorant Garamond', Georgia, serif;
 }
 [data-theme="copper"]  { --accent:#b8725c;--accent-hi:#d49078;--accent-glow:rgba(184,114,92,.2); }
 [data-theme="steel"]   { --accent:#5c8cb8;--accent-hi:#78a8d4;--accent-glow:rgba(92,140,184,.2); }
@@ -139,7 +140,7 @@ html, body {
   display:flex; flex-direction:column; gap:4px;
 }
 .mgr-wordmark-title {
-  font-family:'Cormorant Garamond', serif;
+  font-family:var(--display-font);
   font-size:clamp(2rem,4vw,3.2rem); font-weight:300;
   letter-spacing:.18em; color:#fff; line-height:1;
 }
@@ -227,7 +228,7 @@ html, body {
 .db-card-role.admin { border-color:var(--ac-3); color:var(--accent); }
 .db-card-role.guest { border-color:rgba(92,140,184,.3); color:#78a8d4; }
 .db-card-name {
-  font-family:'Cormorant Garamond', serif;
+  font-family:var(--display-font);
   font-size:1.5rem; font-weight:300; letter-spacing:.12em; color:#fff; line-height:1.1;
 }
 .db-card-sub {
@@ -288,7 +289,7 @@ html, body {
 
 .brand { font-size:7px; letter-spacing:.32em; color:var(--accent); text-transform:uppercase; }
 .top-clock {
-  font-family:'Cormorant Garamond', serif;
+  font-family:var(--display-font);
   font-size:2.3rem; font-weight:300; letter-spacing:.06em;
   color:var(--accent); line-height:1; text-shadow:0 2px 16px rgba(0,0,0,.6);
 }
@@ -299,7 +300,7 @@ html, body {
   display:flex; flex-direction:column; align-items:center; gap:2px;
   pointer-events:none;
 }
-.weather-temp { font-family:'Cormorant Garamond',serif; font-size:1.5rem; font-weight:300; color:#fff; letter-spacing:.1em; }
+.weather-temp { font-family:var(--display-font); font-size:1.5rem; font-weight:300; color:#fff; letter-spacing:.1em; }
 .weather-desc { font-size:7px; letter-spacing:.28em; color:rgba(255,255,255,.65); text-transform:uppercase; }
 
 .topbar-btn {
@@ -349,7 +350,7 @@ html, body {
   padding:2.5rem 4rem 2.5rem; border-radius:50%;
 }
 .hero-greeting {
-  font-family:'Cormorant Garamond', serif;
+  font-family:var(--display-font);
   font-size:clamp(1.6rem,3.5vw,2.8rem); font-weight:300;
   letter-spacing:.22em; line-height:1; color:rgba(255,255,255,.92);
   text-shadow:0 2px 20px rgba(0,0,0,.95); margin-bottom:.4rem;
@@ -580,7 +581,7 @@ html, body {
 .mush-ac-name   { font-size:8px; letter-spacing:.2em; color:#fff; text-transform:uppercase; }
 .mush-ac-status { font-size:7px; color:rgba(255,255,255,.35); letter-spacing:.18em; margin-top:1px; }
 .mush-ac-controls { display:flex; align-items:center; gap:7px; padding:0 13px 10px; }
-.ac-temp-display { font-family:'Cormorant Garamond',serif; font-size:1.3rem; color:#fff; min-width:48px; text-align:center; }
+.ac-temp-display { font-family:var(--display-font); font-size:1.3rem; color:#fff; min-width:48px; text-align:center; }
 .ac-nudge-btn {
   width:26px; height:26px; border-radius:50%; background:rgba(255,255,255,.06);
   border:1px solid var(--border); color:#fff; cursor:pointer; font-size:15px;
@@ -628,7 +629,7 @@ html, body {
   border-radius:10px; align-items:flex-start;
 }
 .cal-date-block { display:flex; flex-direction:column; align-items:center; flex-shrink:0; min-width:34px; }
-.cal-day { font-family:'Cormorant Garamond',serif; font-size:1.3rem; line-height:1; color:var(--accent-hi); }
+.cal-day { font-family:var(--display-font); font-size:1.3rem; line-height:1; color:var(--accent-hi); }
 .cal-mon { font-size:6px; letter-spacing:.25em; color:rgba(255,255,255,.38); text-transform:uppercase; }
 .cal-title { font-size:9px; letter-spacing:.1em; color:#fff; }
 .cal-time  { font-size:7px; letter-spacing:.18em; color:rgba(255,255,255,.4); margin-top:2px; }
@@ -788,7 +789,7 @@ html, body {
   display:flex; align-items:center; justify-content:space-between;
   padding:1.4rem 1.6rem; border-bottom:1px solid var(--border); flex-shrink:0;
 }
-.editor-modal-title { font-family:'Cormorant Garamond',serif; font-size:1.4rem; font-weight:300; letter-spacing:.12em; color:#fff; }
+.editor-modal-title { font-family:var(--display-font); font-size:1.4rem; font-weight:300; letter-spacing:.12em; color:#fff; }
 .editor-modal-body { flex:1; overflow-y:auto; padding:1.6rem; }
 .editor-section-title { font-size:7px; letter-spacing:.35em; text-transform:uppercase; color:var(--text-dim); margin:1rem 0 .6rem; }
 .editor-section-title:first-child { margin-top:0; }
@@ -1134,6 +1135,19 @@ html, body {
                 <option value="amber">Amber</option>
               </select></div>
           </div>
+          <div class="cfg-field"><label class="cfg-label">Display Font</label>
+            <select class="cfg-input" id="cfgFontSel" onchange="applyFont(this.value)">
+              <option value="">Cormorant Garamond</option>
+              <option value="playfair">Playfair Display</option>
+              <option value="crimson-text">Crimson Text</option>
+              <option value="merriweather">Merriweather</option>
+              <option value="montserrat">Montserrat</option>
+              <option value="josefin">Josefin Sans</option>
+              <option value="raleway">Raleway</option>
+              <option value="lato">Lato</option>
+              <option value="roboto">Roboto</option>
+              <option value="oswald">Oswald</option>
+            </select></div>
           <div class="cfg-field"><label class="cfg-label">Connected HA Instance</label>
             <select class="cfg-input" id="cfgConnSel"><!-- populated from config.js --></select></div>
         </div>
@@ -1699,6 +1713,7 @@ function launchDashboard(id) {
   entityStates = {};
 
   applyTheme(DB.theme || '');
+  applyFont(DB.font  || '');
   applyDashboard();
 
   // switch screen
@@ -2191,6 +2206,24 @@ function applyTheme(t) {
   if (DB) DB.theme = t||'';
 }
 
+const FONTS = {
+  '':             "'Cormorant Garamond', Georgia, serif",
+  'playfair':     "'Playfair Display', Georgia, serif",
+  'crimson-text': "'Crimson Text', Georgia, serif",
+  'merriweather': "'Merriweather', Georgia, serif",
+  'montserrat':   "'Montserrat', sans-serif",
+  'josefin':      "'Josefin Sans', sans-serif",
+  'raleway':      "'Raleway', sans-serif",
+  'lato':         "'Lato', sans-serif",
+  'roboto':       "'Roboto', sans-serif",
+  'oswald':       "'Oswald', sans-serif",
+};
+function applyFont(key) {
+  const k = key || '';
+  document.documentElement.style.setProperty('--display-font', FONTS[k] || FONTS['']);
+  if (DB) DB.font = k;
+}
+
 function buildThemeGrid() {
   const grid = document.getElementById('themeGrid');
   grid.innerHTML = THEMES.map(t=>`
@@ -2251,7 +2284,7 @@ function populateCfgForm() {
   if (!DB) return;
   sv('cfgName', DB.name); sv('cfgBg', DB.bg); sv('cfgGreetSub', DB.greeting);
   updateBgPreview();
-  sv('cfgWeather', DB.weather); sv('cfgTempUnit', DB.tempUnit); sv('cfgThemeSel', DB.theme||'');
+  sv('cfgWeather', DB.weather); sv('cfgTempUnit', DB.tempUnit); sv('cfgThemeSel', DB.theme||''); sv('cfgFontSel', DB.font||'');
   sv('cfgMedia', DB.media); sv('cfgCalendars', DB.calendars);
   sv('cfgF1Temp', DB.f1Temp); sv('cfgF1Hum', DB.f1Hum); sv('cfgF1Label', DB.f1Label);
   sv('cfgF2Temp', DB.f2Temp); sv('cfgF2Hum', DB.f2Hum); sv('cfgF2Label', DB.f2Label);
@@ -2277,6 +2310,8 @@ function saveCfg() {
   DB.weather  = gv('cfgWeather');
   DB.tempUnit = gv('cfgTempUnit') || '°C';
   DB.theme    = gv('cfgThemeSel');
+  applyFont(gv('cfgFontSel'));
+  DB.font     = gv('cfgFontSel');
   DB.media    = gv('cfgMedia');
   DB.calendars= gv('cfgCalendars');
   DB.connId   = gv('cfgConnSel')  || DB.connId;

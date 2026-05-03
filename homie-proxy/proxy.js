@@ -86,7 +86,12 @@ const app    = express();
 const server = http.createServer(app);
 
 // Serve static dashboard files from /app/www
-app.use(express.static(path.join(__dirname, 'www')));
+// Disable caching for HTML so browsers always load the latest addon version
+app.use(express.static(path.join(__dirname, 'www'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-store');
+  },
+}));
 
 function buildSafeConns(req) {
   const host     = req.headers['x-forwarded-host'] || req.headers.host || `homeassistant.local:${PORT}`;
@@ -232,6 +237,7 @@ app.post('/dashboards', express.json({ limit: '2mb' }), (req, res) => {
 
 // Catch-all: serve homie.html for any unknown path (SPA behaviour)
 app.get('*', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   res.sendFile(path.join(__dirname, 'www', 'homie.html'));
 });
 
@@ -287,9 +293,11 @@ wss.on('connection', (browserWs, req) => {
     let authDone = false;
 
     // ── HA → browser (server-side receives, forwards to browser) ─────────
-    haWs.on('message', raw => {
+    haWs.on('message', (raw, isBinary) => {
+      // Always work with a string — HA only sends JSON text frames
+      const text = isBinary ? null : raw.toString();
       let msg;
-      try { msg = JSON.parse(raw); } catch { return; }
+      try { msg = JSON.parse(text ?? raw); } catch { return; }
 
       // Intercept auth_required: inject the token ourselves
       // The browser never sends a token — we do it here
@@ -302,16 +310,15 @@ wss.on('connection', (browserWs, req) => {
       if (msg.type === 'auth_ok') {
         authDone = true;
         log('info', `[${connId}] HA auth OK — proxy is live`);
-        // Forward auth_ok so the browser knows the connection is ready
       }
 
       if (msg.type === 'auth_invalid') {
         log('error', `[${connId}] HA rejected token — check addon configuration`);
       }
 
-      // Forward everything else to the browser
+      // Forward as text frame — prevents browser from receiving a Blob
       if (browserWs.readyState === WebSocket.OPEN) {
-        browserWs.send(raw);
+        browserWs.send(isBinary ? raw : text);
       }
     });
 
