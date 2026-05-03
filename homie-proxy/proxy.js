@@ -135,7 +135,7 @@ app.get('/health', (_req, res) => res.json({ status: 'ok', connections: Object.k
 
 // Diagnostic endpoint — tests whether the proxy can actually reach HA
 app.get('/ha-test/:connId', (req, res) => {
-  const connId = req.params.connId;
+  const connId = decodeURIComponent(req.params.connId);
   const conn   = CONN_MAP[connId];
   if (!conn) {
     return res.json({ ok: false, error: 'connection_not_found', connId, registered: Object.keys(CONN_MAP) });
@@ -205,7 +205,7 @@ function haWsRequest(conn, msgType, msgPayload, timeoutMs = 12000) {
 // GET /ha-states/:connId — returns HA entity states as JSON array
 // Entity picker calls this directly; no browser-side WS needed.
 app.get('/ha-states/:connId', (req, res) => {
-  const conn = CONN_MAP[req.params.connId];
+  const conn = CONN_MAP[decodeURIComponent(req.params.connId)];
   if (!conn) { res.status(404).json({ error: 'connection_not_found', registered: Object.keys(CONN_MAP) }); return; }
   res.setHeader('Cache-Control', 'no-store');
   haWsRequest(conn, 'get_states', {})
@@ -219,7 +219,7 @@ app.get('/ha-states/:connId', (req, res) => {
 // GET /ha-mediabrowse/:connId?id=<media_content_id>
 // Media browser calls this directly; no browser-side WS needed.
 app.get('/ha-mediabrowse/:connId', (req, res) => {
-  const conn = CONN_MAP[req.params.connId];
+  const conn = CONN_MAP[decodeURIComponent(req.params.connId)];
   if (!conn) { res.status(404).json({ error: 'connection_not_found' }); return; }
   const mediaContentId = req.query.id || 'media-source://media_source/local';
   res.setHeader('Cache-Control', 'no-store');
@@ -254,7 +254,7 @@ function proxyHaHttp(req, res, conn, haPath, cacheControl) {
 // GET /ha-media/:connId/* — proxy HA media files (browser never sees token)
 // req.params[0] is the wildcard capture — already decoded, no path-replace needed
 app.get('/ha-media/:connId/*', (req, res) => {
-  const conn = CONN_MAP[req.params.connId];
+  const conn = CONN_MAP[decodeURIComponent(req.params.connId)];
   if (!conn) { res.status(404).end(); return; }
   const haPath = '/' + req.params[0];
   proxyHaHttp(req, res, conn, haPath, 'max-age=60');
@@ -262,7 +262,7 @@ app.get('/ha-media/:connId/*', (req, res) => {
 
 // GET /ha-api/:connId/* — proxy HA REST API calls (used by entity picker, etc.)
 app.get('/ha-api/:connId/*', (req, res) => {
-  const connId = req.params.connId;
+  const connId = decodeURIComponent(req.params.connId);
   const conn   = CONN_MAP[connId];
   if (!conn) {
     log('warn', `[ha-api] Unknown connId: "${connId}" — registered: [${Object.keys(CONN_MAP).join(', ')}]`);
@@ -277,9 +277,10 @@ app.get('/ha-api/:connId/*', (req, res) => {
 // POST /ha-callservice/:connId/:domain/:service — calls an HA service via REST API
 // Used as fallback when the browser WebSocket is not connected.
 app.post('/ha-callservice/:connId/:domain/:service', express.json({ limit: '100kb' }), (req, res) => {
-  const conn = CONN_MAP[req.params.connId];
+  const conn = CONN_MAP[decodeURIComponent(req.params.connId)];
   if (!conn) { res.status(404).json({ error: 'connection_not_found' }); return; }
-  const { domain, service } = req.params;
+  const domain  = decodeURIComponent(req.params.domain);
+  const service = decodeURIComponent(req.params.service);
   log('info', `[ha-callservice][${conn.id}][AUDIT] ${domain}.${service} entity=${req.body?.entity_id || '—'}`);
   const body = JSON.stringify(req.body || {});
   resolveHaUrl(conn).then(haUrl => {
