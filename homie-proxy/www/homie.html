@@ -381,15 +381,16 @@ html, body {
 
 /* NOW PLAYING */
 .now-playing {
-  position:fixed; bottom:116px; left:50%; transform:translateX(-50%) translateY(50px);
-  z-index:50;
-  background:rgba(8,8,8,.92); backdrop-filter:blur(14px);
+  position:relative; z-index:2;
+  background:rgba(8,8,8,.82); backdrop-filter:blur(14px);
   border:1px solid var(--ac-25); border-radius:30px;
-  padding:7px 18px; display:flex; align-items:center; gap:14px;
+  padding:7px 18px; display:none; align-items:center; gap:14px;
   min-width:280px; max-width:460px;
-  opacity:0; transition:opacity .4s, transform .4s; pointer-events:none;
+  margin-top:1.5rem;
+  opacity:.4; transition:opacity .4s;
 }
-.now-playing.visible { opacity:1; transform:translateX(-50%) translateY(0); pointer-events:all; }
+.now-playing.configured { display:flex; }
+.now-playing.visible { opacity:1; }
 .np-info { flex:1; min-width:0; }
 .np-track  { font-size:9px; letter-spacing:.14em; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .np-artist { font-size:7px; letter-spacing:.2em; color:rgba(255,255,255,.45); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -1045,26 +1046,25 @@ html, body {
       <div class="hero-sub" id="heroSub">Welcome Home</div>
       <div class="hero-stats" id="heroStats"></div>
     </div>
-  </div>
-
-  <!-- Now Playing -->
-  <div class="now-playing" id="nowPlaying">
-    <div class="np-info">
-      <div class="np-track"  id="npTrack">—</div>
-      <div class="np-artist" id="npArtist">—</div>
+    <!-- Now Playing — in-flow below hero stats -->
+    <div class="now-playing" id="nowPlaying">
+      <div class="np-info">
+        <div class="np-track"  id="npTrack">Nothing playing</div>
+        <div class="np-artist" id="npArtist"></div>
+      </div>
+      <div class="np-controls">
+        <button class="np-btn" onclick="mediaCmd('media_previous_track')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+        </button>
+        <button class="np-btn" id="npPlayPause" onclick="mediaCmd('media_play_pause')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        </button>
+        <button class="np-btn" onclick="mediaCmd('media_next_track')">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm2-8.14 4.5 3.14L8 16.14V9.86zM16 6h2v12h-2z"/></svg>
+        </button>
+      </div>
+      <div class="np-progress" id="npProgress" style="width:0%"></div>
     </div>
-    <div class="np-controls">
-      <button class="np-btn" onclick="mediaCmd('media_previous_track')">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
-      </button>
-      <button class="np-btn" onclick="mediaCmd('media_play_pause')">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-      </button>
-      <button class="np-btn" onclick="mediaCmd('media_next_track')">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm2-8.14 4.5 3.14L8 16.14V9.86zM16 6h2v12h-2z"/></svg>
-      </button>
-    </div>
-    <div class="np-progress" id="npProgress" style="width:0%"></div>
   </div>
 
   <!-- Bottom area -->
@@ -2442,15 +2442,32 @@ function updateNotifs() {
 }
 
 function updateMedia() {
-  const st = entityStates[DB.media||''];
   const np = document.getElementById('nowPlaying');
-  if (!st || ['idle','off','unavailable'].includes(st.state)) { np.classList.remove('visible'); return; }
+  if (!DB.media) { np.classList.remove('configured','visible'); return; }
+  np.classList.add('configured');
+  const st = entityStates[DB.media];
+  const ppBtn = document.getElementById('npPlayPause');
+  if (!st || ['idle','off','unavailable'].includes(st.state)) {
+    document.getElementById('npTrack').textContent  = 'Nothing playing';
+    document.getElementById('npArtist').textContent = '';
+    document.getElementById('npProgress').style.width = '0%';
+    if (ppBtn) ppBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+    np.classList.remove('visible');
+    return;
+  }
   const a = st.attributes||{};
   document.getElementById('npTrack').textContent  = a.media_title  || st.state;
   document.getElementById('npArtist').textContent = a.media_artist || a.app_name || '';
+  if (ppBtn) {
+    const playing = st.state === 'playing';
+    ppBtn.innerHTML = playing
+      ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>'
+      : '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+  }
   np.classList.add('visible');
   const dur=a.media_duration||0, pos=a.media_position||0;
   if (dur>0) document.getElementById('npProgress').style.width=Math.min(100,(pos/dur)*100)+'%';
+  else document.getElementById('npProgress').style.width='0%';
 }
 
 function mediaCmd(svc) { if (DB?.media) callService('media_player', svc, {entity_id:DB.media}); }
