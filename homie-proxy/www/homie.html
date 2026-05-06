@@ -2857,6 +2857,17 @@ function saveCfg() {
   DB.f2Temp   = gv('cfgF2Temp');  DB.f2Hum  = gv('cfgF2Hum');  DB.f2Label = gv('cfgF2Label')||'Upper Floor';
   DB.solarEn  = document.getElementById('cfgSolarEn')?.value==='true';
   DB.solarProd= gv('cfgSolarProd'); DB.solarBatt=gv('cfgSolarBatt');
+  // Explicitly collect light room values from DOM (in case onchange didn't fire on every field)
+  (DB.lightRooms||[]).forEach((r, ri) => {
+    const nameEl = document.getElementById(`li-room-${ri}`);
+    if (nameEl) r.name = nameEl.value;
+    (r.entities||[]).forEach((e, ei) => {
+      const entEl = document.getElementById(`li-ent-${ri}-${ei}`);
+      if (entEl) e.entity = entEl.value;
+      const lblEl = document.getElementById(`li-lbl-${ri}-${ei}`);
+      if (lblEl) e.label = lblEl.value;
+    });
+  });
   saveAllDashboards();
   applyDashboard();
   closeCfg();
@@ -2913,11 +2924,11 @@ function buildLightRooms() {
   document.getElementById('lightRooms').innerHTML = (DB.lightRooms||[]).map((r,ri)=>`
     <div class="cfg-card">
       <div class="cfg-card-header"><div class="cfg-card-title">${r.name||'Room '+(ri+1)}</div><button class="cfg-btn danger sm" onclick="DB.lightRooms.splice(${ri},1);buildLightRooms()">Remove</button></div>
-      <div class="cfg-field"><label class="cfg-label">Room Name</label><input class="cfg-input" value="${r.name||''}" placeholder="Living Room" onchange="DB.lightRooms[${ri}].name=this.value"/></div>
+      <div class="cfg-field"><label class="cfg-label">Room Name</label><input id="li-room-${ri}" class="cfg-input" value="${r.name||''}" placeholder="Living Room" onchange="DB.lightRooms[${ri}].name=this.value"/></div>
       ${(r.entities||[]).map((e,ei)=>`<div style="display:flex;gap:7px;margin-bottom:6px">
         <input id="li-ent-${ri}-${ei}" class="cfg-input cfg-mono" style="flex:2" value="${e.entity||''}" placeholder="light.entity" onchange="DB.lightRooms[${ri}].entities[${ei}].entity=this.value"/>
         <button class="pick-btn" onclick="openEntityPicker('li-ent-${ri}-${ei}','light')" title="Pick entity">🔍</button>
-        <input class="cfg-input" style="flex:1" value="${e.label||''}" placeholder="Label" onchange="DB.lightRooms[${ri}].entities[${ei}].label=this.value"/>
+        <input id="li-lbl-${ri}-${ei}" class="cfg-input" style="flex:1" value="${e.label||''}" placeholder="Label" onchange="DB.lightRooms[${ri}].entities[${ei}].label=this.value"/>
         <button class="cfg-btn danger sm" onclick="DB.lightRooms[${ri}].entities.splice(${ei},1);buildLightRooms()">✕</button>
       </div>`).join('')}
       <button class="cfg-add-btn" onclick="DB.lightRooms[${ri}].entities.push({entity:'',label:''});buildLightRooms()">+ Entity</button>
